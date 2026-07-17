@@ -1,3 +1,13 @@
+# G-Helper fork: fan sync for shared heatsinks
+
+This is a fork of [seerge/g-helper](https://github.com/seerge/g-helper) with one extra feature: an optional **Sync Fans to Hottest Sensor** mode (checkbox in the Fans + Power window, next to the fan curves).
+
+Why: once a custom fan curve is applied, firmware ties each fan strictly to its own sensor - CPU fan to CPU temp, GPU fan to GPU temp. On laptops with a shared heatsink (e.g. Zephyrus M16) that means the GPU fan stays slow while the CPU is cooking, and keeps pulsing on and off while the dGPU falls asleep and wakes up. Stock profiles don't have this problem since they roughly follow the hottest component - this option brings the same behavior to custom curves: no fan is allowed to drop below what its own curve prescribes for the hottest sensor. Firmware stays in charge of real-time control, the fans just get a floor.
+
+Everything else is unchanged from upstream, original readme follows.
+
+---
+
 # G-Helper - Lightweight control tool for Asus laptops
 
 Small and lightweight Armoury Crate alternative for Asus laptops offering almost same functionality with a much smaller footprint. Works with all popular models, such as ROG Zephyrus G14, G15, G16, M16, Flow X13, Flow X16, Flow Z13, DUO, TUF Series, Strix or Scar Series, ProArt, Vivobook, Zenbook, Expertbook, ROG Ally or Ally X and many more!
