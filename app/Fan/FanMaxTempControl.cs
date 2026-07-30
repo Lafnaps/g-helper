@@ -28,7 +28,6 @@ namespace GHelper.Fan
         const byte MIN_SUSTAIN = 3;        // duty that reliably sustains a spinning fan
         const byte START_ASSIST = 10;      // sync floor at which a stopped fan is force-started
         const byte START_TEMP = 20;        // curve start temp used when a fan must be running
-        const int STOP_CONFIRM_TICKS = 3;  // EC dips RPM to 0 for ~10s on dGPU power transitions
 
         public const int HYST_MIN_GAP = 3; // stop point sits at least this far below curve start
 
@@ -38,7 +37,6 @@ namespace GHelper.Fan
         static int lastTemp = NO_TEMP;
         static readonly byte[]?[] lastWritten = new byte[3][];
         static readonly bool[] spinning = new bool[3];
-        static readonly int[] stoppedTicks = new int[3];
 
         static FanMaxTempControl()
         {
@@ -74,7 +72,6 @@ namespace GHelper.Fan
                 lastTemp = NO_TEMP;
                 Array.Clear(lastWritten);
                 Array.Clear(spinning);
-                Array.Clear(stoppedTicks);
                 if (timer.Enabled) return;
                 timer.Start();
             }
@@ -123,12 +120,16 @@ namespace GHelper.Fan
 
             byte floor = (sync && lastTemp != NO_TEMP) ? EvalCurve(curve, lastTemp) : (byte)0;
 
+            bool spin = false;
             if (hyst)
             {
                 int i = (int)device;
-                bool rpmSpin = Program.acpi.GetFan(device) > 0;
-                if (rpmSpin) stoppedTicks[i] = 0; else stoppedTicks[i]++;
-                bool spin = rpmSpin || (spinning[i] && stoppedTicks[i] < STOP_CONFIRM_TICKS);
+                // The moment the fan stops, the base curve must go back to EC: the extended
+                // curve's first point is not just a stop threshold, EC also RESTARTS the fan
+                // there, and the sensor cooled by the fan's own airflow oscillates around it
+                // (observed: 0->2700 pulsing at the stop line). Restart belongs to the base
+                // start point only, so no stop-confirm delay here.
+                spin = Program.acpi.GetFan(device) > 0;
 
                 if (spin != spinning[i])
                 {
@@ -144,7 +145,9 @@ namespace GHelper.Fan
                 }
             }
 
-            if (floor >= START_ASSIST && curve[0] > START_TEMP) curve[0] = START_TEMP;
+            // Start assist is for a STOPPED fan whose own sensor sits below the curve start;
+            // a spinning fan gets the floor via speeds alone (keeps the curve shape stable)
+            if (floor >= START_ASSIST && curve[0] > START_TEMP && !spin) curve[0] = START_TEMP;
             if (floor > 0)
                 for (int k = 8; k < 16; k++) curve[k] = Math.Max(curve[k], floor);
 
