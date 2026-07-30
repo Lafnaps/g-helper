@@ -15,6 +15,7 @@ namespace GHelper
 
         int curIndex = -1;
         DataPoint? curPoint = null;
+        bool hystDrag = false;
         int _kbIndex = 0;
         int _chartTabDirection = 0;
 
@@ -78,6 +79,8 @@ namespace GHelper
 
             checkFanClamp.Text = Properties.Strings.ClampToGrid;
             checkFanSync.Text = Properties.Strings.FanSyncMaxTemp;
+            checkFanHyst.Text = Properties.Strings.FanStopHysteresis;
+            checkFanHyst.Left = checkFanSync.Right + 8;
             labelHysteresisUp.Text = Properties.Strings.HysteresisUp;
             labelHysteresisDown.Text = Properties.Strings.HysteresisDown;
             buttonReadLimits.Text = Properties.Strings.ReadLimits;
@@ -176,6 +179,7 @@ namespace GHelper
             checkApplyFans.Click += CheckApplyFans_Click;
             checkApplyPower.Click += CheckApplyPower_Click;
             checkFanSync.Click += CheckFanSync_Click;
+            checkFanHyst.Click += CheckFanHyst_Click;
 
             AddCopyFromCpuButton(chartGPU, seriesGPU, AsusFan.GPU);
             AddCopyFromCpuButton(chartMid, seriesMid, AsusFan.Mid);
@@ -986,6 +990,79 @@ namespace GHelper
             if (AppConfig.IsApplyFans()) modeControl.AutoFans(); // reapplies curves and starts/stops sync
         }
 
+        private void CheckFanHyst_Click(object? sender, EventArgs e)
+        {
+            AppConfig.Set("fan_hyst", checkFanHyst.Checked ? 1 : 0);
+
+            FanMaxTempControl.Stop();
+            if (AppConfig.IsApplyFans()) modeControl.AutoFans(); // reapplies curves and starts/stops the timer
+
+            UpdateHystVisuals();
+        }
+
+        // Hysteresis stop line + band on each chart: fan starts at the first curve point,
+        // once spinning it keeps running down to the draggable stop line left of it
+        private void UpdateHystVisuals()
+        {
+            UpdateHystVisuals(chartCPU, AsusFan.CPU);
+            UpdateHystVisuals(chartGPU, AsusFan.GPU);
+            if (AppConfig.Is("mid_fan")) UpdateHystVisuals(chartMid, AsusFan.Mid);
+        }
+
+        private void UpdateHystVisuals(Chart chart, AsusFan device)
+        {
+            var strips = chart.ChartAreas[0].AxisX.StripLines;
+            strips.Clear();
+
+            if (AppConfig.Is("fan_hyst"))
+            {
+                byte[] curve = AppConfig.GetFanConfig(device);
+                if (!AsusACPI.IsInvalidCurve(curve) && curve[0] > tempMin + FanMaxTempControl.HYST_MIN_GAP)
+                {
+                    int stop = FanMaxTempControl.HystStop(device, curve[0]);
+                    Color accent = chart.Series[0].Color; // gray when curves are not applied
+
+                    strips.Add(new StripLine
+                    {
+                        IntervalOffset = stop,
+                        StripWidth = curve[0] - stop,
+                        BackColor = Color.FromArgb(22, accent),
+                    });
+                    strips.Add(new StripLine
+                    {
+                        IntervalOffset = stop,
+                        StripWidth = 0,
+                        BorderColor = accent,
+                        BorderWidth = 2,
+                        BorderDashStyle = ChartDashStyle.Dash,
+                        Text = stop + "°",
+                        ForeColor = accent,
+                    });
+                }
+            }
+
+            chart.Invalidate();
+        }
+
+        private void DragHystLine(Chart chart, AsusFan device, Axis ax, MouseEventArgs e)
+        {
+            byte[] curve = AppConfig.GetFanConfig(device);
+            if (AsusACPI.IsInvalidCurve(curve)) return;
+
+            int stop;
+            try { stop = (int)Math.Round(ax.PixelPositionToValue(e.X)); }
+            catch { return; }
+
+            stop = Math.Max(tempMin, Math.Min(curve[0] - FanMaxTempControl.HYST_MIN_GAP, stop));
+            AppConfig.SetMode("fan_hyst_" + FanMaxTempControl.FanName(device), stop);
+            UpdateHystVisuals(chart, device);
+
+            labelTip.Text = Properties.Strings.FanStopHysteresis + ": " + TempHelper.FormatTemp(stop);
+            labelTip.Top = e.Y + chart.Top;
+            labelTip.Left = Math.Min(chart.Width - labelTip.Width - 20, e.X - 50);
+            labelTip.Visible = true;
+        }
+
         // Small overlay button in the top-right corner of a chart that copies the CPU curve into it
         private void AddCopyFromCpuButton(Chart chart, Series target, AsusFan device)
         {
@@ -1020,6 +1097,10 @@ namespace GHelper
                 target.Points.Clear();
                 foreach (DataPoint point in seriesCPU.Points) target.Points.AddXY(point.XValue, point.YValues[0]);
                 SaveProfile(target, device);
+
+                int hystStop = AppConfig.GetMode("fan_hyst_cpu");
+                if (hystStop > 0) AppConfig.SetMode("fan_hyst_" + FanMaxTempControl.FanName(device), hystStop);
+                UpdateHystVisuals(chart, device);
 
                 if (AppConfig.IsApplyFans()) modeControl.AutoFans(); // push the copied curve to EC
             };
@@ -1227,6 +1308,7 @@ namespace GHelper
 
             checkApplyFans.Checked = applyFans;
             checkFanSync.Checked = AppConfig.Is("fan_sync_max_temp");
+            checkFanHyst.Checked = AppConfig.Is("fan_hyst");
 
             if (autoFans || applyFans)
             {
@@ -1242,6 +1324,8 @@ namespace GHelper
                 seriesMid.Color = Color.Gray;
                 seriesXGM.Color = Color.Gray;
             }
+
+            UpdateHystVisuals();
 
             InitHysteresis();
 
@@ -1376,6 +1460,7 @@ namespace GHelper
         {
             curPoint = null;
             curIndex = -1;
+            hystDrag = false;
             labelTip.Visible = false;
 
             SaveProfile(seriesCPU, AsusFan.CPU);
@@ -1388,6 +1473,8 @@ namespace GHelper
                 SaveProfile(seriesXGM, AsusFan.XGM);
 
             modeControl.AutoFans();
+
+            UpdateHystVisuals(); // the first curve point may have moved, re-clamp the stop lines
         }
 
         private void ChartCPU_MouseUp(object? sender, MouseEventArgs e)
@@ -1400,6 +1487,7 @@ namespace GHelper
         {
             curPoint = null;
             curIndex = -1;
+            hystDrag = false;
             labelTip.Visible = false;
             FanDragHint(false);
         }
@@ -1559,6 +1647,17 @@ namespace GHelper
 
             Series series = chart.Series[0];
 
+            if (hystDrag)
+            {
+                if (e.Button.HasFlag(MouseButtons.Left))
+                {
+                    DragHystLine(chart, device, ax, e);
+                    FanDragHint(true);
+                    return;
+                }
+                hystDrag = false;
+            }
+
             if (!e.Button.HasFlag(MouseButtons.Left) || curPoint == null)
             {
                 try
@@ -1587,6 +1686,26 @@ namespace GHelper
                 tip = true;
             }
 
+            // grab the hysteresis stop line when clicking near it (and not on a point)
+            if (curPoint == null && !hystDrag && e.Button.HasFlag(MouseButtons.Left) && AppConfig.Is("fan_hyst"))
+            {
+                byte[] hystCurve = AppConfig.GetFanConfig(device);
+                if (!AsusACPI.IsInvalidCurve(hystCurve) && hystCurve[0] > tempMin + FanMaxTempControl.HYST_MIN_GAP)
+                {
+                    try
+                    {
+                        double lineX = ax.ValueToPixelPosition(FanMaxTempControl.HystStop(device, hystCurve[0]));
+                        if (Math.Abs(e.X - lineX) < 8)
+                        {
+                            hystDrag = true;
+                            DragHystLine(chart, device, ax, e);
+                            FanDragHint(true);
+                            return;
+                        }
+                    }
+                    catch { }
+                }
+            }
 
             if (curPoint != null)
             {
