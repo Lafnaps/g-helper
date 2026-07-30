@@ -16,6 +16,8 @@ public static class HardwareControl
 
     public static float? cpuTemp = -1;
     public static float? gpuTemp = -1;
+    public static int? gpuHotSpot;
+    public static int ssdTemp = -1;
 
     public static float? cpuPower;
     public static float? gpuPower;
@@ -843,10 +845,42 @@ public static class HardwareControl
 
         cpuTemp = GetCPUTemp();
         gpuTemp = GetGPUTemp();
+        gpuHotSpot = (gpuTemp > 0) ? (GpuControl as NvidiaGpuControl)?.HotSpot : null;
+
+        ReadSSDTemp();
 
         if (log) Logger.WriteLine($"Temps: {cpuTemp} {gpuTemp} {cpuFan} {gpuFan} {midFan}");
 
         ReadBatteryState();
+    }
+
+    static long _ssdTempTime = -100000;
+    static bool _ssdTempFailed;
+    const int SSD_TEMP_INTERVAL = 30_000; // NVMe temp moves slowly, WMI query is not free
+
+    // Composite temperature of the hottest physical disk (needs admin; hidden otherwise)
+    static void ReadSSDTemp()
+    {
+        if (_ssdTempFailed || Environment.TickCount64 - _ssdTempTime < SSD_TEMP_INTERVAL) return;
+        _ssdTempTime = Environment.TickCount64;
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(@"root\microsoft\windows\storage",
+                "SELECT Temperature FROM MSFT_StorageReliabilityCounter");
+            int max = -1;
+            foreach (ManagementObject obj in searcher.Get())
+            {
+                int t = Convert.ToInt32(obj["Temperature"]);
+                if (t > max && t < 100) max = t;
+            }
+            ssdTemp = max;
+        }
+        catch
+        {
+            _ssdTempFailed = true; // unelevated or no counters — stop asking
+            ssdTemp = -1;
+        }
     }
 
     // Lightweight sensor read used by the overlay timer - skips battery health, WMI and design capacity
