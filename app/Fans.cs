@@ -80,6 +80,7 @@ namespace GHelper
             checkFanClamp.Text = Properties.Strings.ClampToGrid;
             checkFanSync.Text = Properties.Strings.FanSyncMaxTemp;
             checkFanHyst.Text = Properties.Strings.FanStopHysteresis;
+            labelLeftMinPL.Text = Properties.Strings.MinPowerLimit;
             checkFanHyst.Left = checkFanSync.Right + 8;
             labelHysteresisUp.Text = Properties.Strings.HysteresisUp;
             labelHysteresisDown.Text = Properties.Strings.HysteresisDown;
@@ -265,6 +266,7 @@ namespace GHelper
             trackUV.Scroll += TrackUV_Scroll;
             trackUViGPU.Scroll += TrackUV_Scroll;
             trackTemp.Scroll += TrackUV_Scroll;
+            trackMinPL.Scroll += TrackMinPL_Scroll;
 
             buttonApplyAdvanced.Click += ButtonApplyAdvanced_Click;
             buttonReadLimits.Click += ButtonReadLimits_Click;
@@ -461,9 +463,14 @@ namespace GHelper
             trackUViGPU.Value = igpuUV;
             trackTemp.Value = temp;
 
+            int minPl = Math.Max(trackMinPL.Minimum, Math.Min(trackMinPL.Maximum, AppConfig.GetMode("pl_dyn_min", 20)));
+            trackMinPL.Value = minPl;
+            labelMinPL.Text = minPl + "W";
+
             VisualiseAdvanced();
 
-            buttonAdvanced.Visible = CpuInfo.IsAMD;
+            // Intel has no undervolt panel, but the CPU temp target works through the dynamic PL loop
+            buttonAdvanced.Visible = true;
 
         }
 
@@ -472,8 +479,12 @@ namespace GHelper
             bool available = ModeControl.IsPawnAvailable();
             bool installed = available || ModeControl.IsPawnInstalled();
 
-            panelPawnIO.Visible   = installed;
-            panelDownload.Visible = !installed;
+            // On Intel the CPU temp target works without PawnIO (dynamic PL loop),
+            // so the temperature section is shown even when the driver is absent
+            bool dynPl = !CpuInfo.IsAMD;
+
+            panelPawnIO.Visible   = installed || dynPl;
+            panelDownload.Visible = !installed && CpuInfo.IsSupportedUV(); // driver only buys undervolt
 
             if (installed)
             {
@@ -482,11 +493,62 @@ namespace GHelper
                 panelUV.Visible            = CpuInfo.IsSupportedUV();
                 panelUViGPU.Visible        = CpuInfo.IsSupportedUViGPU();
             }
+            else if (dynPl)
+            {
+                panelTitleAdvanced.Visible = false;
+                labelRisky.Visible         = false;
+                panelUV.Visible            = false;
+                panelUViGPU.Visible        = false;
+                panelAdvancedApply.Visible = false;
+                panelAdvancedAlways.Visible = false;
+                panelAdvancedReadLimits.Visible = false;
+            }
+
+            // Min PL and the live status belong to the dynamic PL loop — Intel only
+            panelMinPL.Visible = dynPl;
+            labelDynPlStatus.Visible = dynPl;
 
             labelUV.Text     = trackUV.Value.ToString();
             labelUViGPU.Text = trackUViGPU.Value.ToString();
 
             labelTemp.Text = (trackTemp.Value < CpuInfo.DefaultTemp) ? TempHelper.FormatTemp(trackTemp.Value) : "Default";
+        }
+
+        private void TrackMinPL_Scroll(object? sender, EventArgs e)
+        {
+            AppConfig.SetMode("pl_dyn_min", trackMinPL.Value);
+            labelMinPL.Text = trackMinPL.Value + "W";
+        }
+
+        // Live view of the dynamic PL loop: status line on the Advanced tab and
+        // "80W -> 45W" on the PL1/PL2 labels while the limits are trimmed
+        public void UpdateDynPl()
+        {
+            if (IsDisposed || Text == "") return;
+
+            bool running = DynamicPowerLimitControl.IsRunning;
+            bool trimming = DynamicPowerLimitControl.IsTrimming;
+            int current = DynamicPowerLimitControl.Current;
+            int baseTotal = DynamicPowerLimitControl.Base;
+            float? temp = HardwareControl.cpuTemp;
+            int target = AppConfig.GetMode("cpu_temp");
+
+            BeginInvoke(delegate
+            {
+                if (trimming)
+                {
+                    int offset = baseTotal - current;
+                    labelDynPlStatus.Text = $"Power limit: {current}W / {baseTotal}W  (CPU {(int)(temp ?? 0)}°C, target {target}°C)";
+                    labelTotal.Text = trackTotal.Value + "W → " + Math.Max(current, trackTotal.Value - offset) + "W";
+                    labelSlow.Text = trackSlow.Value + "W → " + Math.Max(10, trackSlow.Value - offset) + "W";
+                }
+                else
+                {
+                    labelDynPlStatus.Text = running ? $"Power limit: {baseTotal}W" : " ";
+                    labelTotal.Text = trackTotal.Value + "W";
+                    labelSlow.Text = trackSlow.Value + "W";
+                }
+            });
         }
 
         private void AdvancedScroll()
