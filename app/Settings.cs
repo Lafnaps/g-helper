@@ -1637,7 +1637,11 @@ namespace GHelper
             if (HardwareControl.gpuTemp > 0)
             {
                 gpuTemp = ": " + TempHelper.FormatTemp((double)HardwareControl.gpuTemp);
+                if (HardwareControl.gpuHotSpot is int hotSpot && hotSpot > HardwareControl.gpuTemp)
+                    gpuTemp += " (" + TempHelper.FormatTemp(hotSpot) + ")";
             }
+
+            string ssd = HardwareControl.ssdTemp > 0 ? "SSD: " + TempHelper.FormatTemp(HardwareControl.ssdTemp) : "";
 
             if (HardwareControl.cpuFan is not null) cpuFan = Strings.FanSpeed + ": " + HardwareControl.cpuFan;
             if (HardwareControl.gpuFan is not null) gpuFan = Strings.FanSpeed + ": " + HardwareControl.gpuFan;
@@ -1645,7 +1649,9 @@ namespace GHelper
 
             string trayTip = "CPU" + cpuTemp + " " + cpuFan;
             if (gpuTemp.Length > 0) trayTip += "\nGPU" + gpuTemp + " " + gpuFan;
+            if (ssd.Length > 0) trayTip += "\n" + ssd;
             if (battery.Length > 0) trayTip += "\n" + battery;
+            if (trayTip.Length > 127) trayTip = trayTip.Substring(0, 127); // NotifyIcon limit
             
             if (Program.settingsForm.IsHandleCreated)
                 Program.settingsForm.BeginInvoke(delegate
@@ -1656,8 +1662,8 @@ namespace GHelper
                     if (HardwareControl.gpuFan is not null && AppConfig.NoGpu())
                         labelMidFan.Text = "GPU" + gpuTemp + " " + gpuFan;
 
-                    if (HardwareControl.midFan is not null) 
-                        labelMidFan.Text = "Mid " + midFan;
+                    if (HardwareControl.midFan is not null)
+                        labelMidFan.Text = "Mid " + midFan + (ssd.Length > 0 ? "   " + ssd : "");
                     
                     labelBattery.Text = battery;
                     if (!batteryMouseOver && !batteryFullMouseOver) labelCharge.Text = charge;
