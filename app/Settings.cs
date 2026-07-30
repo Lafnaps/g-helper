@@ -1670,6 +1670,8 @@ namespace GHelper
                 });
 
             if (Program.trayIcon is not null) Program.trayIcon.Text = trayTip;
+
+            if (fansForm != null && !fansForm.IsDisposed && fansForm.Visible) fansForm.UpdateDynPl();
         }
 
         public void LabelFansResult(string text)

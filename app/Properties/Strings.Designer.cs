@@ -1089,6 +1089,15 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Minimum Power Limit.
+        /// </summary>
+        internal static string MinPowerLimit {
+            get {
+                return ResourceManager.GetString("MinPowerLimit", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Sync Fans to Hottest Sensor.
         /// </summary>
         internal static string FanSyncMaxTemp {

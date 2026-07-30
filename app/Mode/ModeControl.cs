@@ -105,6 +105,7 @@ namespace GHelper.Mode
         public void ResetPerformanceMode()
         {
             FanMaxTempControl.Stop();
+            DynamicPowerLimitControl.Stop();
             ResetRyzen();
 
             Program.acpi.SetPerformanceMode(Modes.GetCurrentBase());
@@ -325,7 +326,13 @@ namespace GHelper.Mode
 
         public void SetModeLabel()
         {
-            settings.SetModeLabel(Properties.Strings.PerformanceMode + ": " + Modes.GetCurrentName() + (customFans ? "+" : "") + ((customPower > 0) ? " " + customPower + "W" : ""));
+            string power = "";
+            if (DynamicPowerLimitControl.IsTrimming)
+                power = " " + DynamicPowerLimitControl.Current + "/" + DynamicPowerLimitControl.Base + "W";
+            else if (customPower > 0)
+                power = " " + customPower + "W";
+
+            settings.SetModeLabel(Properties.Strings.PerformanceMode + ": " + Modes.GetCurrentName() + (customFans ? "+" : "") + power);
         }
 
         public void SetRyzenPower(bool init = false)
@@ -404,6 +411,9 @@ namespace GHelper.Mode
             {
                 Program.acpi.DeviceSet(AsusACPI.PPT_APUC1, limit_fast, "PowerLimit C1");
             }
+
+            if (DynamicPowerLimitControl.IsEnabled) DynamicPowerLimitControl.Start();
+            else DynamicPowerLimitControl.Stop();
 
             SetModeLabel();
 
@@ -629,6 +639,7 @@ namespace GHelper.Mode
         {
             if (!AppConfig.IsShutdownReset()) return;
             FanMaxTempControl.Stop();
+            DynamicPowerLimitControl.Stop();
             Program.acpi.DeviceSet(AsusACPI.PerformanceMode,AsusACPI.PerformanceBalanced, "Mode Reset");
         }
 
@@ -636,6 +647,7 @@ namespace GHelper.Mode
         {
             if (!AppConfig.IsSleepReset()) return;
             FanMaxTempControl.Stop();
+            DynamicPowerLimitControl.Stop();
             Program.acpi.DeviceSet(AsusACPI.PerformanceMode, Modes.GetCurrentBase(), "Sleep Reset");
         }
 

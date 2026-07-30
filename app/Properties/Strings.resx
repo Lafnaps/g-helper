@@ -177,6 +177,9 @@
   <data name="FanStopHysteresis" xml:space="preserve">
     <value>Fan Stop Hysteresis</value>
   </data>
+  <data name="MinPowerLimit" xml:space="preserve">
+    <value>Minimum Power Limit</value>
+  </data>
   <data name="ApplyPowerLimits" xml:space="preserve">
     <value>Apply Power Limits</value>
   </data>
