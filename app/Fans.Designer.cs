@@ -93,6 +93,11 @@ namespace GHelper
             pictureUV = new PictureBox();
             labelTitleUV = new Label();
             panelTemperature = new Panel();
+            panelMinPL = new Panel();
+            labelMinPL = new Label();
+            labelLeftMinPL = new Label();
+            trackMinPL = new RTrackBar();
+            labelDynPlStatus = new Label();
             labelTemp = new Label();
             labelLeftTemp = new Label();
             trackTemp = new RTrackBar();
@@ -192,7 +197,9 @@ namespace GHelper
             panelTitleAdvanced.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureUV).BeginInit();
             panelTemperature.SuspendLayout();
+            panelMinPL.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackTemp).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)trackMinPL).BeginInit();
             panelTitleTemp.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureTemp).BeginInit();
             panelDownload.SuspendLayout();
@@ -1001,6 +1008,65 @@ namespace GHelper
             trackTemp.TabIndex = 11;
             trackTemp.TickFrequency = 5;
             trackTemp.TickStyle = TickStyle.TopLeft;
+            //
+            // panelMinPL
+            //
+            panelMinPL.AutoSize = true;
+            panelMinPL.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            panelMinPL.Controls.Add(labelMinPL);
+            panelMinPL.Controls.Add(labelLeftMinPL);
+            panelMinPL.Controls.Add(trackMinPL);
+            panelMinPL.Dock = DockStyle.Top;
+            panelMinPL.Margin = new Padding(4);
+            panelMinPL.MaximumSize = new Size(0, 124);
+            panelMinPL.Name = "panelMinPL";
+            panelMinPL.Size = new Size(520, 124);
+            panelMinPL.TabIndex = 2;
+            //
+            // labelMinPL
+            //
+            labelMinPL.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            labelMinPL.Location = new Point(347, 13);
+            labelMinPL.Margin = new Padding(4, 0, 4, 0);
+            labelMinPL.Name = "labelMinPL";
+            labelMinPL.Size = new Size(148, 32);
+            labelMinPL.TabIndex = 13;
+            labelMinPL.Text = "20W";
+            labelMinPL.TextAlign = ContentAlignment.TopRight;
+            //
+            // labelLeftMinPL
+            //
+            labelLeftMinPL.AutoSize = true;
+            labelLeftMinPL.Location = new Point(10, 10);
+            labelLeftMinPL.Margin = new Padding(4, 0, 4, 0);
+            labelLeftMinPL.Name = "labelLeftMinPL";
+            labelLeftMinPL.Size = new Size(183, 32);
+            labelLeftMinPL.TabIndex = 12;
+            labelLeftMinPL.Text = "Minimum Power Limit";
+            //
+            // trackMinPL
+            //
+            trackMinPL.Location = new Point(6, 48);
+            trackMinPL.Margin = new Padding(4, 2, 4, 2);
+            trackMinPL.Maximum = 60;
+            trackMinPL.Minimum = 10;
+            trackMinPL.SmallChange = 5;
+            trackMinPL.LargeChange = 5;
+            trackMinPL.Name = "trackMinPL";
+            trackMinPL.Size = new Size(508, 90);
+            trackMinPL.TabIndex = 11;
+            trackMinPL.TickFrequency = 5;
+            trackMinPL.TickStyle = TickStyle.TopLeft;
+            //
+            // labelDynPlStatus
+            //
+            labelDynPlStatus.AutoSize = true;
+            labelDynPlStatus.Dock = DockStyle.Top;
+            labelDynPlStatus.Name = "labelDynPlStatus";
+            labelDynPlStatus.Padding = new Padding(14, 4, 8, 12);
+            labelDynPlStatus.Size = new Size(520, 48);
+            labelDynPlStatus.TabIndex = 3;
+            labelDynPlStatus.Text = " ";
             // 
             // panelTitleTemp
             // 
@@ -1049,6 +1115,8 @@ namespace GHelper
             panelPawnIO.Controls.Add(panelUViGPU);
             panelPawnIO.Controls.Add(panelUV);
             panelPawnIO.Controls.Add(panelTitleAdvanced);
+            panelPawnIO.Controls.Add(labelDynPlStatus);
+            panelPawnIO.Controls.Add(panelMinPL);
             panelPawnIO.Controls.Add(panelTemperature);
             panelPawnIO.Controls.Add(panelTitleTemp);
             panelPawnIO.Dock = DockStyle.Top;
@@ -1960,7 +2028,10 @@ namespace GHelper
             ((System.ComponentModel.ISupportInitialize)pictureUV).EndInit();
             panelTemperature.ResumeLayout(false);
             panelTemperature.PerformLayout();
+            panelMinPL.ResumeLayout(false);
+            panelMinPL.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackTemp).EndInit();
+            ((System.ComponentModel.ISupportInitialize)trackMinPL).EndInit();
             panelTitleTemp.ResumeLayout(false);
             panelTitleTemp.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureTemp).EndInit();
@@ -2112,6 +2183,11 @@ namespace GHelper
         private PictureBox pictureTemp;
         private Label labelTempLimit;
         private Panel panelTemperature;
+        private Panel panelMinPL;
+        private Label labelMinPL;
+        private Label labelLeftMinPL;
+        private RTrackBar trackMinPL;
+        private Label labelDynPlStatus;
         private Label labelTemp;
         private Label labelLeftTemp;
         private RTrackBar trackTemp;
