@@ -5,9 +5,81 @@ using NvAPIWrapper.Native.GPU;
 using NvAPIWrapper.Native.GPU.Structures;
 using NvAPIWrapper.Native.Interfaces.GPU;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using static NvAPIWrapper.Native.GPU.Structures.PerformanceStates20InfoV1;
 
 namespace GHelper.Gpu.NVidia;
+
+// Undocumented NvAPI thermal channels (same interface HWiNFO/GPU-Z use): the public
+// GetThermalSettings exposes only the core sensor on laptop GPUs, hotspot and memory
+// junction live in NvAPI_GPU_ThermChannelGetStatus (0x65FE3AAD). Read-only.
+// ABI verified empirically on RTX 4090 Laptop / driver 2026-07: struct v2 = 168 bytes
+// (version, mask, 40 ints), channel temps land at ints [8..11] as fixed-point <<8:
+// [8] core, [9] hotspot, [10] memory junction, [11] unknown (VRM?).
+internal static class NvThermalChannels
+{
+    [DllImport("nvapi64.dll", EntryPoint = "nvapi_QueryInterface", CallingConvention = CallingConvention.Cdecl)]
+    static extern IntPtr QueryInterface(uint id);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int InitDelegate();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int EnumGpusDelegate([Out] IntPtr[] handles, out int count);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ThermalDelegate(IntPtr handle, ref ThermalInfo info);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct ThermalInfo
+    {
+        public uint Version;
+        public uint Mask;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 40)] public int[] Temps;
+    }
+
+    const uint MASK_CORE_HOTSPOT = 0x3;
+    const int CH_HOTSPOT = 9;
+
+    static ThermalDelegate? _thermal;
+    static IntPtr _handle;
+    static bool _failed;
+
+    public static int? GetHotSpot()
+    {
+        if (_failed) return null;
+
+        try
+        {
+            if (_thermal is null)
+            {
+                var initPtr = QueryInterface(0x0150E828);
+                var enumPtr = QueryInterface(0xE5AC921F);
+                var thermPtr = QueryInterface(0x65FE3AAD);
+                if (initPtr == IntPtr.Zero || enumPtr == IntPtr.Zero || thermPtr == IntPtr.Zero) { _failed = true; return null; }
+
+                if (Marshal.GetDelegateForFunctionPointer<InitDelegate>(initPtr)() != 0) { _failed = true; return null; }
+
+                IntPtr[] handles = new IntPtr[64];
+                if (Marshal.GetDelegateForFunctionPointer<EnumGpusDelegate>(enumPtr)(handles, out int count) != 0 || count == 0) { _failed = true; return null; }
+
+                _handle = handles[0];
+                _thermal = Marshal.GetDelegateForFunctionPointer<ThermalDelegate>(thermPtr);
+            }
+
+            var info = new ThermalInfo
+            {
+                Version = (uint)Marshal.SizeOf<ThermalInfo>() | 0x20000,
+                Mask = MASK_CORE_HOTSPOT,
+                Temps = new int[40]
+            };
+            if (_thermal(_handle, ref info) != 0) return null;
+
+            int hot = info.Temps[CH_HOTSPOT] >> 8;
+            return (hot > 0 && hot < 130) ? hot : null;
+        }
+        catch
+        {
+            _failed = true; // driver without this interface — stop asking
+            return null;
+        }
+    }
+}
 
 public class NvidiaGpuControl : IGpuControl
 {
@@ -78,6 +150,8 @@ public class NvidiaGpuControl : IGpuControl
         return _lastState;
     }
 
+    public int? HotSpot { get; private set; }
+
     public int? ReadCurrentTemperature(bool log = false)
     {
         if (!IsValid) return null;
@@ -88,7 +162,9 @@ public class NvidiaGpuControl : IGpuControl
         IThermalSensor? gpuSensor = thermalSettings.Sensors
             .FirstOrDefault(s => s.Target == ThermalSettingsTarget.GPU);
 
-        if (log || verboseLog) Logger.WriteLine($"GPU Temp: {gpuSensor?.CurrentTemperature}C");
+        HotSpot = gpuSensor is null ? null : NvThermalChannels.GetHotSpot();
+
+        if (log || verboseLog) Logger.WriteLine($"GPU Temp: {gpuSensor?.CurrentTemperature}C" + (HotSpot is int h ? $" Hot: {h}C" : ""));
         return gpuSensor?.CurrentTemperature;
     }
 
