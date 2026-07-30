@@ -1080,6 +1080,15 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Fan Stop Hysteresis.
+        /// </summary>
+        internal static string FanStopHysteresis {
+            get {
+                return ResourceManager.GetString("FanStopHysteresis", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Sync Fans to Hottest Sensor.
         /// </summary>
         internal static string FanSyncMaxTemp {

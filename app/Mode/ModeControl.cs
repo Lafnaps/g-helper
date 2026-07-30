@@ -291,7 +291,7 @@ namespace GHelper.Mode
                 XGM.Reset();
             }
 
-            if (customFans && FanMaxTempControl.IsEnabled) FanMaxTempControl.Start();
+            if (customFans && FanMaxTempControl.IsAnyEnabled) FanMaxTempControl.Start();
             else FanMaxTempControl.Stop();
 
             SetModeLabel();

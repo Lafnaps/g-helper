@@ -43,6 +43,7 @@ namespace GHelper
             panelFans = new Panel();
             checkFanClamp = new RCheckBox();
             checkFanSync = new RCheckBox();
+            checkFanHyst = new RCheckBox();
             labelTip = new Label();
             tableFanCharts = new TableLayoutPanel();
             chartGPU = new RChart();
@@ -239,6 +240,7 @@ namespace GHelper
             panelFans.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             panelFans.Controls.Add(checkFanClamp);
             panelFans.Controls.Add(checkFanSync);
+            panelFans.Controls.Add(checkFanHyst);
             panelFans.Controls.Add(labelTip);
             panelFans.Controls.Add(tableFanCharts);
             panelFans.Controls.Add(panelTitleFans);
@@ -278,6 +280,19 @@ namespace GHelper
             checkFanSync.TabStop = false;
             checkFanSync.Text = "Sync Fans to Hottest Sensor";
             checkFanSync.UseVisualStyleBackColor = false;
+            //
+            // checkFanHyst
+            //
+            checkFanHyst.AutoSize = true;
+            checkFanHyst.Font = new Font("Segoe UI", 8F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            checkFanHyst.Location = new Point(470, 80);
+            checkFanHyst.Name = "checkFanHyst";
+            checkFanHyst.Padding = new Padding(8, 1, 2, 1);
+            checkFanHyst.Size = new Size(200, 44);
+            checkFanHyst.TabIndex = 7;
+            checkFanHyst.TabStop = false;
+            checkFanHyst.Text = "Fan Stop Hysteresis";
+            checkFanHyst.UseVisualStyleBackColor = false;
             //
             // labelTip
             // 
@@ -2126,6 +2141,7 @@ namespace GHelper
         private TableLayoutPanel tableLayoutModes;
         private RCheckBox checkFanClamp;
         private RCheckBox checkFanSync;
+        private RCheckBox checkFanHyst;
         private Panel panelHysteresis;
         private TableLayoutPanel tableHysteresis;
         private Label labelHysteresisUp;
