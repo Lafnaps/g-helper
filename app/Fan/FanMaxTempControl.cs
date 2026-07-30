@@ -1,9 +1,21 @@
 namespace GHelper.Fan
 {
-    // EC firmware runs each fan off its own sensor (CPU fan - CPU temp, GPU fan - GPU temp).
-    // Since the heatsink is shared, this periodically raises the floor of every custom curve
-    // to the speed its own curve prescribes at the hottest sensor, so no fan idles while
-    // another component is hot. EC keeps reacting to its own sensor above the floor.
+    // EC firmware runs each fan off its own sensor (CPU fan - CPU temp, GPU fan - GPU zone).
+    // Two optional dynamic-curve features share the 3s timer below.
+    //
+    // 1) Sync to hottest sensor (fan_sync_max_temp): since the heatsink is shared, raises the
+    //    floor of every custom curve to the speed its own curve prescribes at the hottest
+    //    sensor, so no fan idles while another component is hot. When the floor is substantial
+    //    (>= START_ASSIST) the curve start is also pulled down to START_TEMP so EC actually
+    //    spins up a stopped fan (its own sensor may still sit below the first curve point).
+    //
+    // 2) Stop hysteresis (fan_hyst): EC applies an audible start impulse (~2700+ RPM) on every
+    //    fan start regardless of the target duty, so instead of letting a fan stop and restart
+    //    around the curve start point, once a fan is observed spinning its curve start is
+    //    extended down to a per-fan stop temperature (fan_hyst_{cpu|gpu|mid}_{mode}) at
+    //    >= MIN_SUSTAIN duty; the fan then keeps running until its own sensor cools below the
+    //    stop point. While the fan is stopped the unmodified curve sits in EC, so the start
+    //    point stays exactly where the user drew it.
     //
     // Lifecycle: started by ModeControl.AutoFans after custom curves are successfully applied,
     // stopped by AutoFans otherwise and by every path that resets EC curves behind its back
@@ -13,12 +25,20 @@ namespace GHelper.Fan
         const int TICK_MS = 3000;
         const int TEMP_STEP = 2;
         const int NO_TEMP = -1000;
+        const byte MIN_SUSTAIN = 3;        // duty that reliably sustains a spinning fan
+        const byte START_ASSIST = 10;      // sync floor at which a stopped fan is force-started
+        const byte START_TEMP = 20;        // curve start temp used when a fan must be running
+        const int STOP_CONFIRM_TICKS = 3;  // EC dips RPM to 0 for ~10s on dGPU power transitions
+
+        public const int HYST_MIN_GAP = 3; // stop point sits at least this far below curve start
 
         static readonly System.Timers.Timer timer = new(TICK_MS);
         static readonly object syncLock = new();
 
         static int lastTemp = NO_TEMP;
         static readonly byte[]?[] lastWritten = new byte[3][];
+        static readonly bool[] spinning = new bool[3];
+        static readonly int[] stoppedTicks = new int[3];
 
         static FanMaxTempControl()
         {
@@ -30,6 +50,22 @@ namespace GHelper.Fan
         }
 
         public static bool IsEnabled => AppConfig.Is("fan_sync_max_temp");
+        public static bool IsHystEnabled => AppConfig.Is("fan_hyst");
+        public static bool IsAnyEnabled => IsEnabled || IsHystEnabled;
+
+        public static string FanName(AsusFan device) => device switch
+        {
+            AsusFan.GPU => "gpu",
+            AsusFan.Mid => "mid",
+            _ => "cpu",
+        };
+
+        // Per-fan per-mode stop temperature, clamped to a sane band below the curve start
+        public static int HystStop(AsusFan device, int firstPointTemp)
+        {
+            int stop = AppConfig.GetMode("fan_hyst_" + FanName(device), firstPointTemp - 10);
+            return Math.Max(START_TEMP, Math.Min(firstPointTemp - HYST_MIN_GAP, stop));
+        }
 
         public static void Start()
         {
@@ -37,6 +73,8 @@ namespace GHelper.Fan
             {
                 lastTemp = NO_TEMP;
                 Array.Clear(lastWritten);
+                Array.Clear(spinning);
+                Array.Clear(stoppedTicks);
                 if (timer.Enabled) return;
                 timer.Start();
             }
@@ -45,7 +83,7 @@ namespace GHelper.Fan
 
         public static void Stop()
         {
-            lock (syncLock) // waits for an in-flight tick, so no floor write lands after Stop returns
+            lock (syncLock) // waits for an in-flight tick, so no write lands after Stop returns
             {
                 if (!timer.Enabled) return;
                 timer.Stop();
@@ -59,29 +97,56 @@ namespace GHelper.Fan
             {
                 if (!timer.Enabled) return;
 
-                int temp = -1;
-                float? cpu = HardwareControl.GetCPUTemp();
-                float? gpu = HardwareControl.GetGPUTemp();
-                if (cpu is > 0 and < 120) temp = (int)cpu;
-                if (gpu is > 0 and < 120 && (int)gpu > temp) temp = (int)gpu;
-                if (temp < 0) return;
+                bool sync = IsEnabled, hyst = IsHystEnabled;
+                if (!sync && !hyst) return;
 
-                if (Math.Abs(temp - lastTemp) < TEMP_STEP) return;
-                lastTemp = temp;
+                if (sync)
+                {
+                    int temp = -1;
+                    float? cpu = HardwareControl.GetCPUTemp();
+                    float? gpu = HardwareControl.GetGPUTemp();
+                    if (cpu is > 0 and < 120) temp = (int)cpu;
+                    if (gpu is > 0 and < 120 && (int)gpu > temp) temp = (int)gpu;
+                    if (temp > 0 && Math.Abs(temp - lastTemp) >= TEMP_STEP) lastTemp = temp;
+                }
 
-                ApplyFloor(AsusFan.CPU, temp);
-                ApplyFloor(AsusFan.GPU, temp);
-                if (AppConfig.Is("mid_fan")) ApplyFloor(AsusFan.Mid, temp);
+                Apply(AsusFan.CPU, sync, hyst);
+                Apply(AsusFan.GPU, sync, hyst);
+                if (AppConfig.Is("mid_fan")) Apply(AsusFan.Mid, sync, hyst);
             }
         }
 
-        static void ApplyFloor(AsusFan device, int temp)
+        static void Apply(AsusFan device, bool sync, bool hyst)
         {
             byte[] curve = AppConfig.GetFanConfig(device);
             if (AsusACPI.IsInvalidCurve(curve)) return;
 
-            byte floor = EvalCurve(curve, temp);
-            for (int i = 8; i < 16; i++) curve[i] = Math.Max(curve[i], floor);
+            byte floor = (sync && lastTemp != NO_TEMP) ? EvalCurve(curve, lastTemp) : (byte)0;
+
+            if (hyst)
+            {
+                int i = (int)device;
+                bool rpmSpin = Program.acpi.GetFan(device) > 0;
+                if (rpmSpin) stoppedTicks[i] = 0; else stoppedTicks[i]++;
+                bool spin = rpmSpin || (spinning[i] && stoppedTicks[i] < STOP_CONFIRM_TICKS);
+
+                if (spin != spinning[i])
+                {
+                    spinning[i] = spin;
+                    Logger.WriteLine($"FanHyst: {device} {(spin ? "spinning" : "stopped")}");
+                }
+
+                if (spin)
+                {
+                    int stop = HystStop(device, curve[0]);
+                    if (stop < curve[0]) curve[0] = (byte)stop;
+                    for (int k = 8; k < 16; k++) curve[k] = Math.Max(curve[k], MIN_SUSTAIN);
+                }
+            }
+
+            if (floor >= START_ASSIST && curve[0] > START_TEMP) curve[0] = START_TEMP;
+            if (floor > 0)
+                for (int k = 8; k < 16; k++) curve[k] = Math.Max(curve[k], floor);
 
             if (lastWritten[(int)device] is byte[] prev && prev.SequenceEqual(curve)) return;
 
