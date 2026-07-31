@@ -40,6 +40,23 @@ internal static class NvThermalChannels
     static IntPtr _handle;
     static bool _failed;
 
+    static bool EnsureHandle()
+    {
+        if (_handle != IntPtr.Zero) return true;
+
+        var initPtr = QueryInterface(0x0150E828);
+        var enumPtr = QueryInterface(0xE5AC921F);
+        if (initPtr == IntPtr.Zero || enumPtr == IntPtr.Zero) return false;
+
+        if (Marshal.GetDelegateForFunctionPointer<InitDelegate>(initPtr)() != 0) return false;
+
+        IntPtr[] handles = new IntPtr[64];
+        if (Marshal.GetDelegateForFunctionPointer<EnumGpusDelegate>(enumPtr)(handles, out int count) != 0 || count == 0) return false;
+
+        _handle = handles[0];
+        return true;
+    }
+
     public static int? GetHotSpot()
     {
         if (_failed) return null;
@@ -48,17 +65,8 @@ internal static class NvThermalChannels
         {
             if (_thermal is null)
             {
-                var initPtr = QueryInterface(0x0150E828);
-                var enumPtr = QueryInterface(0xE5AC921F);
                 var thermPtr = QueryInterface(0x65FE3AAD);
-                if (initPtr == IntPtr.Zero || enumPtr == IntPtr.Zero || thermPtr == IntPtr.Zero) { _failed = true; return null; }
-
-                if (Marshal.GetDelegateForFunctionPointer<InitDelegate>(initPtr)() != 0) { _failed = true; return null; }
-
-                IntPtr[] handles = new IntPtr[64];
-                if (Marshal.GetDelegateForFunctionPointer<EnumGpusDelegate>(enumPtr)(handles, out int count) != 0 || count == 0) { _failed = true; return null; }
-
-                _handle = handles[0];
+                if (thermPtr == IntPtr.Zero || !EnsureHandle()) { _failed = true; return null; }
                 _thermal = Marshal.GetDelegateForFunctionPointer<ThermalDelegate>(thermPtr);
             }
 
@@ -76,6 +84,55 @@ internal static class NvThermalChannels
         catch
         {
             _failed = true; // driver without this interface — stop asking
+            return null;
+        }
+    }
+
+    // NvAPI_GPU_GetCurrentVoltage (0x465F9BCF): core voltage in uV. Read-only;
+    // mobile RTX 40 reports it even though voltage CONTROL is locked.
+    // ABI verified empirically on RTX 4090 Laptop, driver 2026-07: v1 = 76 bytes,
+    // uV lands at offset 40, the rest reads back as zeros.
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int VoltageDelegate(IntPtr handle, ref VoltageStatus status);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct VoltageStatus
+    {
+        public uint Version;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 9)] public uint[] Unknown;
+        public uint ValueUv;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)] public uint[] Reserved;
+    }
+
+    static VoltageDelegate? _voltage;
+    static bool _voltageFailed;
+
+    public static double? GetCoreVoltage()
+    {
+        if (_voltageFailed) return null;
+
+        try
+        {
+            if (_voltage is null)
+            {
+                var ptr = QueryInterface(0x465F9BCF);
+                if (ptr == IntPtr.Zero || !EnsureHandle()) { _voltageFailed = true; return null; }
+                _voltage = Marshal.GetDelegateForFunctionPointer<VoltageDelegate>(ptr);
+            }
+
+            var status = new VoltageStatus
+            {
+                Version = (uint)Marshal.SizeOf<VoltageStatus>() | 0x10000,
+                Unknown = new uint[9],
+                Reserved = new uint[8]
+            };
+            if (_voltage(_handle, ref status) != 0) return null;
+
+            double volts = status.ValueUv / 1_000_000.0;
+            return (volts > 0.3 && volts < 1.6) ? volts : null;
+        }
+        catch
+        {
+            _voltageFailed = true;
             return null;
         }
     }
@@ -129,7 +186,7 @@ public class NvidiaGpuControl : IGpuControl
 
     private GpuState _lastState = GpuState.Off;
     private long _lastStateTime = -StateCacheMs;
-    private const int StateCacheMs = 500; 
+    private const int StateCacheMs = 500;
 
     private GpuState GetGpuState()
     {
@@ -151,6 +208,42 @@ public class NvidiaGpuControl : IGpuControl
     }
 
     public int? HotSpot { get; private set; }
+
+    public bool IsGpuActive => GetGpuState() == GpuState.Active;
+
+    public double? CoreVoltage => NvThermalChannels.GetCoreVoltage();
+
+    // Silent one-shot poll for the tuning telemetry line: no Logger noise
+    // (RunCMD logs every call and this runs every couple of seconds)
+    public static (int coreMhz, int memMhz, double? watts)? ReadSmiTelemetry()
+    {
+        try
+        {
+            using var p = new Process();
+            p.StartInfo.FileName = "nvidia-smi";
+            p.StartInfo.Arguments = "--query-gpu=clocks.gr,clocks.mem,power.draw --format=csv,noheader,nounits";
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.Start();
+            string line = p.StandardOutput.ReadLine() ?? "";
+            if (!p.WaitForExit(3000)) { try { p.Kill(); } catch { } return null; }
+
+            var parts = line.Split(',');
+            if (parts.Length < 3) return null;
+
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            if (!double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Float, ci, out double core)) return null;
+            if (!double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, ci, out double mem)) return null;
+            double? watts = double.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Float, ci, out double w) ? w : null;
+
+            return ((int)core, (int)mem, watts);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     public int? ReadCurrentTemperature(bool log = false)
     {
