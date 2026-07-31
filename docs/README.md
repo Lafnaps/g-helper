@@ -1,8 +1,26 @@
-# G-Helper fork: fan sync for shared heatsinks
+# G-Helper fork: smarter fans and thermals
 
-This is a fork of [seerge/g-helper](https://github.com/seerge/g-helper) with one extra feature: an optional **Sync Fans to Hottest Sensor** mode (checkbox in the Fans + Power window, next to the fan curves).
+This is a fork of [seerge/g-helper](https://github.com/seerge/g-helper) with a set of optional fan and thermal features, developed and tested on a ROG Zephyrus M16 (GU604) with three fans. Everything is opt-in: with the extras left off, the app behaves exactly like upstream.
 
-Why: once a custom fan curve is applied, firmware ties each fan strictly to its own sensor - CPU fan to CPU temp, GPU fan to GPU temp. On laptops with a shared heatsink (e.g. Zephyrus M16) that means the GPU fan stays slow while the CPU is cooking, and keeps pulsing on and off while the dGPU falls asleep and wakes up. Stock profiles don't have this problem since they roughly follow the hottest component - this option brings the same behavior to custom curves: no fan is allowed to drop below what its own curve prescribes for the hottest sensor. Firmware stays in charge of real-time control, the fans just get a floor.
+## What's different from upstream
+
+<img align="right" width="380" src="https://raw.githubusercontent.com/Lafnaps/g-helper/assets/main-window.png" alt="Main window: GPU hotspot temperature, SSD temperature, dynamic power limit indicator" />
+
+**Sync Fans to Hottest Sensor** ([PR #5727](https://github.com/seerge/g-helper/pull/5727)). Once a custom fan curve is applied, firmware ties each fan strictly to its own sensor - CPU fan to CPU temp, GPU fan to GPU temp. On laptops with a shared heatsink that means the GPU fan idles while the CPU is cooking. This option gives every fan a floor: no fan may spin slower than what its own curve prescribes for the hottest sensor. Firmware stays in charge of real-time control.
+
+**Fan Stop Hysteresis**. A custom curve's first point is both the stop and the restart threshold, so a fan hovering around it keeps pulsing on and off (with the firmware's loud start kick every time). With this option each chart gets a draggable stop line: the fan starts at the curve's first point but keeps spinning quietly until temperature falls below the stop line.
+
+**Dynamic power limit for a CPU temperature target (Intel)**. AMD models have a hardware CPU Temp Target; Intel ones don't. The **CPU Temp Limit** slider (Advanced tab) sets a target temperature, and G-Helper gently trims or restores PL1/PL2 between your configured limit and a **Minimum Power Limit** to hold it - handy for quiet profiles where you'd rather lose a few watts than hear the fans. While active, the current limit is shown in the window header (`Mode: Silent 65/80W`).
+
+**Fan curve axis calibration** ([PR #5815](https://github.com/seerge/g-helper/pull/5815)). Chart RPM labels are normally a linear guess between min and max fan speed, which can be far from reality (the M16 mid fan never spins below 3600 RPM, yet the stock axis happily shows 700). The **Calibrate** button now also measures a real duty-to-RPM table per fan, so axis labels and tooltips show speeds the fan actually runs at, and tooltips include the raw duty %.
+
+**Copy from CPU** buttons ([PR #5804](https://github.com/seerge/g-helper/pull/5804)) on the GPU and Mid fan charts copy the CPU curve to that fan - no more dragging every point twice.
+
+**More sensors**: GPU hotspot temperature next to the GPU temp, and SSD temperature in the main window and tray tooltip (shown when running as administrator).
+
+| Fan curves: sync + hysteresis stop lines + copy buttons + calibrated axes | Advanced tab: CPU temp target |
+| --- | --- |
+| ![Fan curves with stop hysteresis lines, Copy from CPU buttons and calibrated RPM axes](https://raw.githubusercontent.com/Lafnaps/g-helper/assets/fans-window.png) | ![Advanced tab with CPU Temp Limit and Minimum Power Limit sliders](https://raw.githubusercontent.com/Lafnaps/g-helper/assets/fans-advanced.png) |
 
 Everything else is unchanged from upstream, original readme follows.
 
