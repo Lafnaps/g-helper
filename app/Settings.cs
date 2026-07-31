@@ -1665,7 +1665,7 @@ namespace GHelper
                         labelMidFan.Text = "GPU" + gpuTemp + " " + gpuFan;
 
                     if (HardwareControl.midFan is not null)
-                        labelMidFan.Text = "Mid " + midFan + (ssd.Length > 0 ? "   " + ssd : "");
+                        labelMidFan.Text = (ssd.Length > 0 ? ssd + "  " : "") + "Mid " + midFan;
                     
                     labelBattery.Text = battery;
                     if (!batteryMouseOver && !batteryFullMouseOver) labelCharge.Text = charge;
