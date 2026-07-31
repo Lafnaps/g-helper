@@ -15,7 +15,10 @@ namespace GHelper.Fan
     //    extended down to a per-fan stop temperature (fan_hyst_{cpu|gpu|mid}_{mode}) at
     //    >= MIN_SUSTAIN duty; the fan then keeps running until its own sensor cools below the
     //    stop point. While the fan is stopped the unmodified curve sits in EC, so the start
-    //    point stays exactly where the user drew it.
+    //    point stays exactly where the user drew it. Exception - GPU fan idle park: while
+    //    the dGPU sleeps, a stopped GPU fan gets its start raised to curve[1]-1, because
+    //    with the dGPU down the zone input re-heats from the shared heatsink past low
+    //    drawn starts in seconds and EC would kick the fan in an endless loop.
     //
     // Lifecycle: started by ModeControl.AutoFans after custom curves are successfully applied,
     // stopped by AutoFans otherwise and by every path that resets EC curves behind its back
@@ -34,9 +37,12 @@ namespace GHelper.Fan
         static readonly System.Timers.Timer timer = new(TICK_MS);
         static readonly object syncLock = new();
 
+        const int GPU_ACTIVE_CONFIRM = 3;  // ticks of dGPU uptime before its drawn start returns
+
         static int lastTemp = NO_TEMP;
         static readonly byte[]?[] lastWritten = new byte[3][];
         static readonly bool[] spinning = new bool[3];
+        static int gpuActiveTicks;
 
         static FanMaxTempControl()
         {
@@ -107,6 +113,9 @@ namespace GHelper.Fan
                     if (temp > 0 && Math.Abs(temp - lastTemp) >= TEMP_STEP) lastTemp = temp;
                 }
 
+                bool gpuActive = HardwareControl.GpuControl is Gpu.NVidia.NvidiaGpuControl nv && nv.IsGpuActive;
+                gpuActiveTicks = gpuActive ? gpuActiveTicks + 1 : 0;
+
                 Apply(AsusFan.CPU, sync, hyst);
                 Apply(AsusFan.GPU, sync, hyst);
                 if (AppConfig.Is("mid_fan")) Apply(AsusFan.Mid, sync, hyst);
@@ -144,6 +153,20 @@ namespace GHelper.Fan
                     for (int k = 8; k < 16; k++) curve[k] = Math.Max(curve[k], MIN_SUSTAIN);
                 }
             }
+
+            // GPU fan idle park: while the dGPU is powered down, EC's input for this fan
+            // is blown below any stop line in seconds by the fan's own airflow, and once
+            // the fan stops it re-heats from the shared heatsink past low curve starts in
+            // ~10 s - an unbreakable limit cycle for starts drawn at/below that equilibrium
+            // (observed at 54-60 with CPU at 64-68). So a stopped GPU fan is parked with
+            // its start raised to just under the second point; the drawn start returns
+            // after the dGPU has been awake for GPU_ACTIVE_CONFIRM ticks (real use, not a
+            // brief telemetry wake). Start assist below still overrides the park.
+            if (device == AsusFan.GPU && hyst && !spin
+                && gpuActiveTicks < GPU_ACTIVE_CONFIRM
+                && HardwareControl.GpuControl is Gpu.NVidia.NvidiaGpuControl
+                && curve[1] > curve[0] + 1)
+                curve[0] = (byte)(curve[1] - 1);
 
             // Start assist is for a STOPPED fan whose own sensor sits below the curve start;
             // a spinning fan gets the floor via speeds alone (keeps the curve shape stable)
