@@ -1089,6 +1089,15 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to GPU is asleep.
+        /// </summary>
+        internal static string GpuSleeping {
+            get {
+                return ResourceManager.GetString("GpuSleeping", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Minimum Power Limit.
         /// </summary>
         internal static string MinPowerLimit {

@@ -163,6 +163,7 @@ namespace GHelper
             labelGPUClockLimit = new Label();
             trackGPUClockLimit = new RTrackBar();
             labelGPUClockLimitTitle = new Label();
+            labelGpuTelemetry = new Label();
             panelTitleGPU = new Panel();
             pictureGPU = new PictureBox();
             labelGPU = new Label();
@@ -1545,6 +1546,7 @@ namespace GHelper
             panelGPU.Controls.Add(panelGPUMemory);
             panelGPU.Controls.Add(panelGPUCore);
             panelGPU.Controls.Add(panelGPUClockLimit);
+            panelGPU.Controls.Add(labelGpuTelemetry);
             panelGPU.Controls.Add(panelTitleGPU);
             panelGPU.Dock = DockStyle.Top;
             panelGPU.Location = new Point(10, 66);
@@ -1554,6 +1556,16 @@ namespace GHelper
             panelGPU.Size = new Size(520, 822);
             panelGPU.TabIndex = 1;
             panelGPU.Visible = false;
+            //
+            // labelGpuTelemetry
+            //
+            labelGpuTelemetry.AutoSize = true;
+            labelGpuTelemetry.Dock = DockStyle.Top;
+            labelGpuTelemetry.Name = "labelGpuTelemetry";
+            labelGpuTelemetry.Padding = new Padding(14, 0, 8, 10);
+            labelGpuTelemetry.Size = new Size(520, 42);
+            labelGpuTelemetry.TabIndex = 8;
+            labelGpuTelemetry.Text = " ";
             // 
             // panelGPUTemp
             // 
@@ -2188,6 +2200,7 @@ namespace GHelper
         private Label labelLeftMinPL;
         private RTrackBar trackMinPL;
         private Label labelDynPlStatus;
+        private Label labelGpuTelemetry;
         private Label labelTemp;
         private Label labelLeftTemp;
         private RTrackBar trackTemp;
