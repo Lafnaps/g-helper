@@ -866,13 +866,20 @@ public static class HardwareControl
 
         try
         {
+            // MSFT_StorageReliabilityCounter is an association class: enumerating it
+            // directly returns nothing, the counters exist only via their physical disk
             using var searcher = new ManagementObjectSearcher(@"root\microsoft\windows\storage",
-                "SELECT Temperature FROM MSFT_StorageReliabilityCounter");
+                "SELECT * FROM MSFT_PhysicalDisk");
             int max = -1;
-            foreach (ManagementObject obj in searcher.Get())
+            foreach (ManagementObject disk in searcher.Get())
             {
-                int t = Convert.ToInt32(obj["Temperature"]);
-                if (t > max && t < 100) max = t;
+                foreach (ManagementBaseObject counter in disk.GetRelated("MSFT_StorageReliabilityCounter"))
+                {
+                    int t = Convert.ToInt32(counter["Temperature"]);
+                    if (t > max && t < 100) max = t;
+                    counter.Dispose();
+                }
+                disk.Dispose();
             }
             ssdTemp = max;
         }
