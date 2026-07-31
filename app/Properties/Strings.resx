@@ -177,6 +177,9 @@
   <data name="FanStopHysteresis" xml:space="preserve">
     <value>Fan Stop Hysteresis</value>
   </data>
+  <data name="GpuSleeping" xml:space="preserve">
+    <value>GPU is asleep</value>
+  </data>
   <data name="MinPowerLimit" xml:space="preserve">
     <value>Minimum Power Limit</value>
   </data>

@@ -314,6 +314,76 @@ namespace GHelper
             chartGPU.AccessibleName = "GPU fan curve";
             chartMid.AccessibleName = "Mid fan curve";
             chartXGM.AccessibleName = "XG Mobile fan curve";
+
+            InitGpuTelemetry();
+        }
+
+        private System.Windows.Forms.Timer? telemetryTimer;
+        private bool telemetryBusy;
+
+        private void InitGpuTelemetry()
+        {
+            if (HardwareControl.GpuControl is not NvidiaGpuControl)
+            {
+                labelGpuTelemetry.Visible = false;
+                return;
+            }
+
+            telemetryTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+            telemetryTimer.Tick += TelemetryTick;
+            // Poll only while the GPU tab is in front: nvidia-smi queries keep
+            // the dGPU awake, so they must stop the moment the tab is left
+            panelGPU.VisibleChanged += (_, _) =>
+            {
+                telemetryTimer.Enabled = panelGPU.Visible;
+                if (panelGPU.Visible) TelemetryTick(null, EventArgs.Empty);
+                else labelGpuTelemetry.Text = " ";
+            };
+            FormClosed += (_, _) => telemetryTimer.Stop();
+        }
+
+        private void TelemetryTick(object? sender, EventArgs e)
+        {
+            if (telemetryBusy || HardwareControl.GpuControl is not NvidiaGpuControl nv) return;
+            telemetryBusy = true;
+
+            Task.Run(() =>
+            {
+                string text;
+                // An asleep dGPU is left asleep: nvidia-smi would wake it up
+                if (!nv.IsGpuActive)
+                {
+                    text = Properties.Strings.GpuSleeping;
+                }
+                else
+                {
+                    var smi = NvidiaGpuControl.ReadSmiTelemetry();
+                    if (smi is null)
+                    {
+                        text = Properties.Strings.GpuSleeping;
+                    }
+                    else
+                    {
+                        text = smi.Value.coreMhz + " MHz  /  " + smi.Value.memMhz + " MHz";
+                        if (nv.CoreVoltage is double volts) text += "   " + volts.ToString("0.000") + "V";
+                        if (smi.Value.watts is double w) text += "   " + Math.Round(w) + "W";
+                    }
+                }
+
+                try
+                {
+                    if (!IsDisposed) BeginInvoke(() =>
+                    {
+                        labelGpuTelemetry.Text = text;
+                        telemetryBusy = false;
+                    });
+                    else telemetryBusy = false;
+                }
+                catch
+                {
+                    telemetryBusy = false;
+                }
+            });
         }
 
         private void CheckFanClamp_Click(object? sender, EventArgs e)
