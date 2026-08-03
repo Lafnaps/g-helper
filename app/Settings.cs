@@ -21,6 +21,7 @@ namespace GHelper
 {
     public partial class SettingsForm : RForm
     {
+        readonly ToolTip sensorTip = new();
         ContextMenuStrip contextMenuStrip = new CustomContextMenu();
         ToolStripMenuItem menuEco, menuStandard, menuUltimate, menuOptimized;
         DonateControl donateControl;
@@ -193,6 +194,9 @@ namespace GHelper
 
             labelCPUFan.Click += LabelCPUFan_Click;
             labelGPUFan.Click += LabelCPUFan_Click;
+
+            sensorTip.SetToolTip(labelGPUFan, Properties.Strings.GpuRowTooltip);
+            sensorTip.SetToolTip(labelMidFan, Properties.Strings.MidRowTooltip);
 
             comboMatrix.DropDownStyle = ComboBoxStyle.DropDownList;
             comboMatrixRunning.DropDownStyle = ComboBoxStyle.DropDownList;
