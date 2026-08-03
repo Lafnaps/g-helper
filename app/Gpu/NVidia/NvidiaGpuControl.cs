@@ -40,6 +40,18 @@ internal static class NvThermalChannels
     static IntPtr _handle;
     static bool _failed;
 
+    // Cached NVAPI state dies with the dGPU session: after an Eco cycle the driver is
+    // reloaded and old physical-GPU handles are invalid, so DisposeGpuControl resets us
+    // along with NvmlHelper/NvAPIWrapper - otherwise hotspot and voltage silently die
+    public static void Reset()
+    {
+        _handle = IntPtr.Zero;
+        _thermal = null;
+        _voltage = null;
+        _failed = false;
+        _voltageFailed = false;
+    }
+
     static bool EnsureHandle()
     {
         if (_handle != IntPtr.Zero) return true;
@@ -234,8 +246,14 @@ public class NvidiaGpuControl : IGpuControl
             p.StartInfo.CreateNoWindow = true;
             p.StartInfo.RedirectStandardOutput = true;
             p.Start();
-            string line = p.StandardOutput.ReadLine() ?? "";
-            if (!p.WaitForExit(3000)) { try { p.Kill(); } catch { } return null; }
+
+            // The read itself needs the timeout: nvidia-smi can hang without printing a
+            // line (driver being torn down mid-Eco-switch) and a bare ReadLine would
+            // block this task forever, leaking the process and freezing the telemetry
+            var readTask = p.StandardOutput.ReadLineAsync();
+            if (!readTask.Wait(3000)) { try { p.Kill(); } catch { } return null; }
+            string line = readTask.Result ?? "";
+            if (!p.WaitForExit(2000)) { try { p.Kill(); } catch { } }
 
             var parts = line.Split(',');
             if (parts.Length < 3) return null;
