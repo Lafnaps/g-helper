@@ -126,11 +126,13 @@ namespace GHelper.Fan
         // The chart Y axis assumes RPM is linear in duty, which is false for fans with a steep
         // low end (Mid on GU604: 10% duty is already 3700 RPM) — a measured table fixes the labels.
         static readonly Dictionary<int, (int duty, int rpm)[]?> _lutCache = new();
+        static readonly object _lutLock = new(); // UI thread reads vs timer-thread Clear after calibration
 
         public static (int duty, int rpm)[]? GetLut(AsusFan device)
         {
             int i = (int)device;
-            if (_lutCache.TryGetValue(i, out var cached)) return cached;
+            lock (_lutLock)
+                if (_lutCache.TryGetValue(i, out var cached)) return cached;
 
             (int, int)[]? parsed = null;
             string? raw = AppConfig.GetString("fan_lut_" + i);
@@ -146,7 +148,7 @@ namespace GHelper.Fan
                 catch { parsed = null; }
             }
 
-            _lutCache[i] = parsed;
+            lock (_lutLock) _lutCache[i] = parsed;
             return parsed;
         }
 
@@ -200,6 +202,19 @@ namespace GHelper.Fan
         static int axisTick;
         static readonly int[] axisSum = new int[FAN_COUNT];
         static readonly List<(int duty, int rpm)>[] axisPoints = new List<(int, int)>[FAN_COUNT];
+
+        // A calibration run owns the EC for minutes; an external mode apply (hotkey,
+        // charger flip, combo) would corrupt fan_max/fan_lut with foreign-curve readings,
+        // so ModeControl.AutoFans aborts us before touching the curves
+        public static bool IsCalibrating => timer is not null && timer.Enabled;
+
+        public static void AbortCalibration()
+        {
+            if (!IsCalibrating) return;
+            timer.Enabled = false;
+            axisPhase = false;
+            Logger.WriteLine("Calibration aborted by an external mode apply - fan_max/fan_lut not saved");
+        }
 
         public void StartCalibration()
         {
@@ -338,7 +353,7 @@ namespace GHelper.Fan
                 Logger.WriteLine($"Axis LUT {(AsusFan)i}: {lut}");
             }
 
-            _lutCache.Clear();
+            lock (_lutLock) _lutCache.Clear();
         }
 
         private void FinishCalibration()
