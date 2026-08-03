@@ -232,6 +232,10 @@ namespace GHelper.Mode
 
         public void AutoFans(bool force = false)
         {
+            // An in-flight calibration would be silently corrupted by the curve writes
+            // below (its flat measurement curves get replaced mid-sweep) - abort it
+            FanSensorControl.AbortCalibration();
+
             customFans = false;
 
             if (AppConfig.IsApplyFans() || force)
@@ -244,8 +248,14 @@ namespace GHelper.Mode
                     xgmFan = Program.acpi.IsXGConnected();
                 }
 
+                // Custom-curve mode is per-fan on EC: skipping the write leaves the GPU fan
+                // on the stock algorithm, which keeps it spinning through dGPU wake/sleep
+                // flips (no restart kicks). FanMaxTempControl.HybridGpu engages the custom
+                // curve on real demand and returns the fan to stock afterwards.
+                bool gpuStock = AppConfig.IsMode("fan_gpu_stock");
+
                 int cpuResult = Program.acpi.SetFanCurve(AsusFan.CPU, AppConfig.GetFanConfig(AsusFan.CPU));
-                int gpuResult = Program.acpi.SetFanCurve(AsusFan.GPU, AppConfig.GetFanConfig(AsusFan.GPU));
+                int gpuResult = gpuStock ? 1 : Program.acpi.SetFanCurve(AsusFan.GPU, AppConfig.GetFanConfig(AsusFan.GPU));
 
                 if (AppConfig.Is("mid_fan"))
                     Program.acpi.SetFanCurve(AsusFan.Mid, AppConfig.GetFanConfig(AsusFan.Mid));
@@ -255,7 +265,7 @@ namespace GHelper.Mode
                 if (cpuResult != 1 || gpuResult != 1)
                 {
                     cpuResult = Program.acpi.SetFanRange(AsusFan.CPU, AppConfig.GetFanConfig(AsusFan.CPU));
-                    gpuResult = Program.acpi.SetFanRange(AsusFan.GPU, AppConfig.GetFanConfig(AsusFan.GPU));
+                    if (!gpuStock) gpuResult = Program.acpi.SetFanRange(AsusFan.GPU, AppConfig.GetFanConfig(AsusFan.GPU));
 
                     // Something went wrong, resetting to default profile
                     if (cpuResult != 1 || gpuResult != 1)
