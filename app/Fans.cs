@@ -184,6 +184,7 @@ namespace GHelper
 
             AddCopyFromCpuButton(chartGPU, seriesGPU, AsusFan.GPU);
             AddCopyFromCpuButton(chartMid, seriesMid, AsusFan.Mid);
+            AddGpuStockCheckbox(chartGPU);
 
             trackGPUClockLimit.Minimum = NvidiaGpuControl.MinClockLimit;
             trackGPUClockLimit.Maximum = NvidiaGpuControl.MaxClockLimit;
@@ -301,6 +302,12 @@ namespace GHelper
             trackUV.AccessibleName = labelLeftUV.Text;
             trackUViGPU.AccessibleName = labelLeftUViGPU.Text;
             trackTemp.AccessibleName = labelLeftTemp.Text;
+
+            // On Intel the temp target drives the software PL loop, and the loop must be
+            // (re)started when the slider lands - otherwise the new target silently waits
+            // for the next mode/power event (AMD applies via SetThm elsewhere)
+            trackTemp.MouseUp += TrackTemp_Commit;
+            trackTemp.KeyUp += TrackTemp_Commit;
             trackGPUCore.AccessibleName = labelGPUCoreTitle.Text;
             trackGPUMemory.AccessibleName = labelGPUMemoryTitle.Text;
             trackGPUBoost.AccessibleName = labelGPUBoostTitle.Text;
@@ -315,31 +322,46 @@ namespace GHelper
             chartMid.AccessibleName = "Mid fan curve";
             chartXGM.AccessibleName = "XG Mobile fan curve";
 
+            toolTip.AutoPopDelay = 15000; // fork feature tooltips are full sentences
+            toolTip.SetToolTip(checkFanSync, Properties.Strings.FanSyncTooltip);
+            toolTip.SetToolTip(checkFanHyst, Properties.Strings.FanHystTooltip);
+            toolTip.SetToolTip(buttonCalibrate, Properties.Strings.CalibrateTooltip);
+            toolTip.SetToolTip(trackMinPL, Properties.Strings.MinPlTooltip);
+            toolTip.SetToolTip(labelGpuTelemetry, Properties.Strings.GpuTelemetryTooltip);
+            if (!CpuInfo.IsAMD) toolTip.SetToolTip(trackTemp, Properties.Strings.CpuTempLimitTooltip);
+
             InitGpuTelemetry();
         }
+
+        private readonly ToolTip toolTip = new();
 
         private System.Windows.Forms.Timer? telemetryTimer;
         private bool telemetryBusy;
 
         private void InitGpuTelemetry()
         {
-            if (HardwareControl.GpuControl is not NvidiaGpuControl)
-            {
-                labelGpuTelemetry.Visible = false;
-                return;
-            }
-
-            telemetryTimer = new System.Windows.Forms.Timer { Interval = 2000 };
-            telemetryTimer.Tick += TelemetryTick;
-            // Poll only while the GPU tab is in front: nvidia-smi queries keep
-            // the dGPU awake, so they must stop the moment the tab is left
+            // GpuControl may still be null at construction time (RecreateGpuControl runs
+            // asynchronously after an Eco -> Standard switch), so the NVIDIA check and the
+            // timer creation happen lazily on every tab activation instead of once here
             panelGPU.VisibleChanged += (_, _) =>
             {
+                bool nvidia = HardwareControl.GpuControl is NvidiaGpuControl;
+                labelGpuTelemetry.Visible = nvidia;
+                if (!nvidia) return;
+
+                if (telemetryTimer == null)
+                {
+                    // Poll only while the GPU tab is in front: nvidia-smi queries keep
+                    // the dGPU awake, so they must stop the moment the tab is left
+                    telemetryTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+                    telemetryTimer.Tick += TelemetryTick;
+                    FormClosed += (_, _) => telemetryTimer.Stop();
+                }
+
                 telemetryTimer.Enabled = panelGPU.Visible;
                 if (panelGPU.Visible) TelemetryTick(null, EventArgs.Empty);
                 else labelGpuTelemetry.Text = " ";
             };
-            FormClosed += (_, _) => telemetryTimer.Stop();
         }
 
         private void TelemetryTick(object? sender, EventArgs e)
@@ -603,22 +625,73 @@ namespace GHelper
             float? temp = HardwareControl.cpuTemp;
             int target = AppConfig.GetMode("cpu_temp");
 
-            BeginInvoke(delegate
+            try
             {
-                if (trimming)
+                BeginInvoke(delegate
                 {
-                    int offset = baseTotal - current;
-                    labelDynPlStatus.Text = $"Power limit: {current}W / {baseTotal}W  (CPU {(int)(temp ?? 0)}°C, target {target}°C)";
-                    labelTotal.Text = trackTotal.Value + "W → " + Math.Max(current, trackTotal.Value - offset) + "W";
-                    labelSlow.Text = trackSlow.Value + "W → " + Math.Max(10, trackSlow.Value - offset) + "W";
-                }
-                else
-                {
-                    labelDynPlStatus.Text = running ? $"Power limit: {baseTotal}W" : " ";
-                    labelTotal.Text = trackTotal.Value + "W";
-                    labelSlow.Text = trackSlow.Value + "W";
-                }
-            });
+                    if (trimming)
+                    {
+                        int offset = baseTotal - current;
+                        labelDynPlStatus.Text = $"Power limit: {current}W / {baseTotal}W  (CPU {(int)(temp ?? 0)}°C, target {target}°C)";
+                        labelTotal.Text = trackTotal.Value + "W → " + Math.Max(current, trackTotal.Value - offset) + "W";
+                        labelSlow.Text = trackSlow.Value + "W → " + Math.Max(10, trackSlow.Value - offset) + "W";
+                    }
+                    else
+                    {
+                        labelDynPlStatus.Text = running ? $"Power limit: {baseTotal}W" : " ";
+                        labelTotal.Text = trackTotal.Value + "W";
+                        labelSlow.Text = trackSlow.Value + "W";
+                    }
+
+                    // The hybrid phase lives right in the checkbox label: who owns the GPU fan
+                    if (checkGpuStock != null)
+                    {
+                        switch (FanMaxTempControl.GpuFanPhase)
+                        {
+                            case FanMaxTempControl.GpuPhase.Engaged:
+                                checkGpuStock.Text = Properties.Strings.GpuFanStock + " (" + Properties.Strings.GpuPhaseEngaged + ")";
+                                checkGpuStock.ForeColor = colorTurbo; // the GPU series color
+                                break;
+                            case FanMaxTempControl.GpuPhase.Parked:
+                                checkGpuStock.Text = Properties.Strings.GpuFanStock + " (" + Properties.Strings.GpuPhaseParked + ")";
+                                checkGpuStock.ForeColor = Color.Gray;
+                                break;
+                            default: // stock phase or feature off
+                                checkGpuStock.Text = Properties.Strings.GpuFanStock;
+                                checkGpuStock.ForeColor = RForm.foreMain;
+                                break;
+                        }
+                    }
+
+                    // The software temp-limit loop only runs while Apply Power Limits is on:
+                    // gray its controls out otherwise, and say why when a target is set
+                    if (!CpuInfo.IsAMD)
+                    {
+                        bool plApplied = AppConfig.IsMode("auto_apply_power");
+                        trackTemp.Enabled = plApplied;
+                        trackMinPL.Enabled = plApplied;
+                        labelTemp.Enabled = plApplied;
+                        labelMinPL.Enabled = plApplied;
+                        labelLeftTemp.Enabled = plApplied;
+                        labelLeftMinPL.Enabled = plApplied;
+                        if (!plApplied && target > 0 && target < CpuInfo.DefaultTemp)
+                            labelDynPlStatus.Text = Properties.Strings.TempLimitNeedsPower;
+                    }
+                });
+            }
+            catch
+            {
+                // caller is a threadpool continuation: the form can be disposed between
+                // the IsDisposed check and BeginInvoke - swallowing beats killing the app
+            }
+        }
+
+        private void TrackTemp_Commit(object? sender, EventArgs e)
+        {
+            if (CpuInfo.IsAMD) return;
+            if (DynamicPowerLimitControl.IsEnabled) DynamicPowerLimitControl.Start();
+            else DynamicPowerLimitControl.Stop();
+            UpdateDynPl();
         }
 
         private void AdvancedScroll()
@@ -1209,6 +1282,43 @@ namespace GHelper
             labelTip.Visible = true;
         }
 
+        private CheckBox? checkGpuStock;
+
+        // Overlay checkbox in the top-left corner of the GPU chart: leave the GPU fan on the
+        // stock EC algorithm at idle (custom-curve mode is per-fan; stock keeps spinning
+        // through dGPU wake/sleep flips - no restart kicks). Under real demand
+        // FanMaxTempControl.HybridGpu temporarily engages the custom curve.
+        private void AddGpuStockCheckbox(Chart chart)
+        {
+            float dpi = ControlHelper.GetDpiScale(this).Value;
+
+            checkGpuStock = new CheckBox
+            {
+                AutoSize = true,
+                BackColor = RForm.buttonSecond,
+                ForeColor = RForm.foreMain,
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular, GraphicsUnit.Point, 0),
+                TabStop = false,
+                Text = Properties.Strings.GpuFanStock,
+                Checked = AppConfig.IsMode("fan_gpu_stock"),
+            };
+
+            chart.Controls.Add(checkGpuStock);
+            checkGpuStock.Location = new Point((int)(8 * dpi), (int)(4 * dpi));
+            toolTip.SetToolTip(checkGpuStock, Properties.Strings.GpuStockTooltip);
+
+            checkGpuStock.Click += (_, _) =>
+            {
+                AppConfig.SetMode("fan_gpu_stock", checkGpuStock.Checked ? 1 : 0);
+
+                FanMaxTempControl.Stop();
+                // Full reapply: the mode rewrite resets EC fan state (the only per-fan
+                // "back to stock" there is) AND power limits - so fans and power must
+                // both be re-applied, same as the Apply checkboxes do
+                modeControl.SetPerformanceMode();
+            };
+        }
+
         // Small overlay button in the top-right corner of a chart that copies the CPU curve into it
         private void AddCopyFromCpuButton(Chart chart, Series target, AsusFan device)
         {
@@ -1235,6 +1345,7 @@ namespace GHelper
 
             chart.Controls.Add(button);
             button.Location = new Point(chart.ClientSize.Width - button.Width - (int)(8 * dpi), (int)(6 * dpi));
+            toolTip.SetToolTip(button, Properties.Strings.CopyCpuTooltip);
 
             button.Click += (_, _) =>
             {
@@ -1455,6 +1566,7 @@ namespace GHelper
             checkApplyFans.Checked = applyFans;
             checkFanSync.Checked = AppConfig.Is("fan_sync_max_temp");
             checkFanHyst.Checked = AppConfig.Is("fan_hyst");
+            if (checkGpuStock != null) checkGpuStock.Checked = AppConfig.IsMode("fan_gpu_stock");
 
             if (autoFans || applyFans)
             {
@@ -1599,6 +1711,8 @@ namespace GHelper
                 AppConfig.RemoveMode("hysteresis_down");
                 InitHysteresis();
             }
+
+            UpdateHystVisuals(); // stop lines follow the freshly reset curve starts
 
         }
 
@@ -1833,7 +1947,8 @@ namespace GHelper
             }
 
             // grab the hysteresis stop line when clicking near it (and not on a point)
-            if (curPoint == null && !hystDrag && e.Button.HasFlag(MouseButtons.Left) && AppConfig.Is("fan_hyst"))
+            if (curPoint == null && !hystDrag && e.Button.HasFlag(MouseButtons.Left) && AppConfig.Is("fan_hyst")
+                && device != AsusFan.XGM) // XGM has no hysteresis; FanName would alias it to the CPU key
             {
                 byte[] hystCurve = AppConfig.GetFanConfig(device);
                 if (!AsusACPI.IsInvalidCurve(hystCurve) && hystCurve[0] > tempMin + FanMaxTempControl.HYST_MIN_GAP)

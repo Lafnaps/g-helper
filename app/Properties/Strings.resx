@@ -180,6 +180,48 @@
   <data name="GpuSleeping" xml:space="preserve">
     <value>GPU is asleep</value>
   </data>
+  <data name="GpuFanStock" xml:space="preserve">
+    <value>Stock</value>
+  </data>
+  <data name="TempLimitNeedsPower" xml:space="preserve">
+    <value>CPU Temp Limit requires Apply Power Limits</value>
+  </data>
+  <data name="FanSyncTooltip" xml:space="preserve">
+    <value>No fan is allowed below what its own curve prescribes at the hottest sensor (CPU or GPU). For shared-heatsink laptops where one fan idles while the other component is hot.</value>
+  </data>
+  <data name="FanHystTooltip" xml:space="preserve">
+    <value>A started fan keeps spinning until its sensor cools down to the draggable stop line on the chart, instead of pulsing on and off around the curve start with the firmware's loud start kick.</value>
+  </data>
+  <data name="GpuStockTooltip" xml:space="preserve">
+    <value>Keep the GPU fan on the stock EC algorithm at idle - it survives dGPU sleep/wake flips without restart kicks. The custom curve engages automatically under real demand and hands back to stock afterwards.</value>
+  </data>
+  <data name="CopyCpuTooltip" xml:space="preserve">
+    <value>Copy the CPU curve and its stop line to this fan.</value>
+  </data>
+  <data name="CalibrateTooltip" xml:space="preserve">
+    <value>Measures the maximum RPM of each fan, then sweeps duty down 90-3% to build a real duty-to-RPM table for the chart axes and tooltips. Takes a few minutes at full fan speed.</value>
+  </data>
+  <data name="CpuTempLimitTooltip" xml:space="preserve">
+    <value>Software temperature target: PL1/PL2 are trimmed below the configured limits while the CPU runs hotter than this, and restored as it cools. Requires Apply Power Limits.</value>
+  </data>
+  <data name="MinPlTooltip" xml:space="preserve">
+    <value>The lowest the dynamic power limit is allowed to trim to.</value>
+  </data>
+  <data name="GpuTelemetryTooltip" xml:space="preserve">
+    <value>Core clock / memory clock / core voltage / power draw. Polled only while this tab is open; a sleeping GPU is not woken.</value>
+  </data>
+  <data name="GpuRowTooltip" xml:space="preserve">
+    <value>GPU temperature (hotspot in brackets) and fan speed.</value>
+  </data>
+  <data name="MidRowTooltip" xml:space="preserve">
+    <value>Hottest drive temperature (needs administrator) and middle fan speed.</value>
+  </data>
+  <data name="GpuPhaseEngaged" xml:space="preserve">
+    <value>custom</value>
+  </data>
+  <data name="GpuPhaseParked" xml:space="preserve">
+    <value>parked</value>
+  </data>
   <data name="MinPowerLimit" xml:space="preserve">
     <value>Minimum Power Limit</value>
   </data>

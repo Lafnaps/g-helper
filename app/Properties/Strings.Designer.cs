@@ -1098,6 +1098,96 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Stock GPU fan.
+        /// </summary>
+        internal static string GpuFanStock {
+            get {
+                return ResourceManager.GetString("GpuFanStock", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to CPU Temp Limit requires Apply Power Limits.
+        /// </summary>
+        internal static string TempLimitNeedsPower {
+            get {
+                return ResourceManager.GetString("TempLimitNeedsPower", resourceCulture);
+            }
+        }
+
+        internal static string FanSyncTooltip {
+            get {
+                return ResourceManager.GetString("FanSyncTooltip", resourceCulture);
+            }
+        }
+
+        internal static string FanHystTooltip {
+            get {
+                return ResourceManager.GetString("FanHystTooltip", resourceCulture);
+            }
+        }
+
+        internal static string GpuStockTooltip {
+            get {
+                return ResourceManager.GetString("GpuStockTooltip", resourceCulture);
+            }
+        }
+
+        internal static string CopyCpuTooltip {
+            get {
+                return ResourceManager.GetString("CopyCpuTooltip", resourceCulture);
+            }
+        }
+
+        internal static string CalibrateTooltip {
+            get {
+                return ResourceManager.GetString("CalibrateTooltip", resourceCulture);
+            }
+        }
+
+        internal static string CpuTempLimitTooltip {
+            get {
+                return ResourceManager.GetString("CpuTempLimitTooltip", resourceCulture);
+            }
+        }
+
+        internal static string MinPlTooltip {
+            get {
+                return ResourceManager.GetString("MinPlTooltip", resourceCulture);
+            }
+        }
+
+        internal static string GpuTelemetryTooltip {
+            get {
+                return ResourceManager.GetString("GpuTelemetryTooltip", resourceCulture);
+            }
+        }
+
+        internal static string GpuRowTooltip {
+            get {
+                return ResourceManager.GetString("GpuRowTooltip", resourceCulture);
+            }
+        }
+
+        internal static string MidRowTooltip {
+            get {
+                return ResourceManager.GetString("MidRowTooltip", resourceCulture);
+            }
+        }
+
+        internal static string GpuPhaseEngaged {
+            get {
+                return ResourceManager.GetString("GpuPhaseEngaged", resourceCulture);
+            }
+        }
+
+        internal static string GpuPhaseParked {
+            get {
+                return ResourceManager.GetString("GpuPhaseParked", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Minimum Power Limit.
         /// </summary>
         internal static string MinPowerLimit {

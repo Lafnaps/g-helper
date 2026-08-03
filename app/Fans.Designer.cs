@@ -1315,10 +1315,10 @@ namespace GHelper
             // labelSlow
             // 
             labelSlow.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            labelSlow.Location = new Point(396, 10);
+            labelSlow.Location = new Point(300, 10);
             labelSlow.Margin = new Padding(4, 0, 4, 0);
             labelSlow.Name = "labelSlow";
-            labelSlow.Size = new Size(116, 32);
+            labelSlow.Size = new Size(212, 32);
             labelSlow.TabIndex = 12;
             labelSlow.Text = "SPPT";
             labelSlow.TextAlign = ContentAlignment.TopRight;
@@ -1364,10 +1364,10 @@ namespace GHelper
             // labelTotal
             // 
             labelTotal.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            labelTotal.Location = new Point(396, 10);
+            labelTotal.Location = new Point(300, 10);
             labelTotal.Margin = new Padding(4, 0, 4, 0);
             labelTotal.Name = "labelTotal";
-            labelTotal.Size = new Size(116, 32);
+            labelTotal.Size = new Size(212, 32);
             labelTotal.TabIndex = 12;
             labelTotal.Text = "SPL";
             labelTotal.TextAlign = ContentAlignment.TopRight;
