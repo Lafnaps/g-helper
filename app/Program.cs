@@ -222,6 +222,10 @@ namespace GHelper
                 hardwareOverlay?.StartOverlay();
 
             Application.ApplicationExit += OnExit;
+            // A quit while the dynamic PL loop is trimming must not leave the EC at the
+            // shaved watts forever - Stop() restores the base limits
+            Application.ApplicationExit += (_, _) => DynamicPowerLimitControl.Stop();
+
             Application.Run();
         }
 
