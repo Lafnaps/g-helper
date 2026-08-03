@@ -77,9 +77,33 @@ namespace GHelper.Mode
                 timer.Stop();
                 wasTrimming = IsTrimming;
                 IsTrimming = false;
+
+                // The trim must not outlive the loop: on app quit nothing else would ever
+                // restore the limits and the EC would keep running at the shaved watts.
+                // On mode changes this is a harmless double-write before the new limits.
+                if (offset > 0)
+                {
+                    int baseTotal = AppConfig.GetMode("limit_total");
+                    int baseSlow = AppConfig.GetMode("limit_slow", baseTotal);
+                    if (baseTotal >= AsusACPI.MinTotal && baseTotal <= AsusACPI.MaxTotal
+                        && Program.acpi.IsSupported(AsusACPI.PPT_APUA0))
+                    {
+                        Program.acpi.DeviceSet(AsusACPI.PPT_APUA3, baseTotal, null);
+                        Program.acpi.DeviceSet(AsusACPI.PPT_APUA0, baseSlow, null);
+                        Logger.WriteLine($"DynPL: base {baseTotal}W restored on stop");
+                    }
+                    offset = 0;
+                }
             }
             Logger.WriteLine("DynPL: stopped");
             if (wasTrimming) Program.modeControl.SetModeLabel();
+        }
+
+        // External EC resets (mode rewrite behind our back) invalidate the dedupe cache:
+        // the next tick rewrites the current value even if the offset has not changed
+        public static void Invalidate()
+        {
+            lock (plLock) applied = int.MinValue;
         }
 
         static void Tick()
