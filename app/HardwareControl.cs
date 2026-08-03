@@ -856,6 +856,7 @@ public static class HardwareControl
 
     static long _ssdTempTime = -100000;
     static bool _ssdTempFailed;
+    static bool _ssdTempWorked; // a query has succeeded at least once this session
     const int SSD_TEMP_INTERVAL = 30_000; // NVMe temp moves slowly, WMI query is not free
 
     // Composite temperature of the hottest physical disk (needs admin; hidden otherwise)
@@ -882,10 +883,14 @@ public static class HardwareControl
                 disk.Dispose();
             }
             ssdTemp = max;
+            _ssdTempWorked = true;
         }
         catch
         {
-            _ssdTempFailed = true; // unelevated or no counters — stop asking
+            // Latch off only when the very first query fails (unelevated / no counters).
+            // Once it has worked, a failure is transient (WMI restart, resume) and the
+            // 30 s cadence keeps retrying instead of hiding the sensor until app restart.
+            _ssdTempFailed = !_ssdTempWorked;
             ssdTemp = -1;
         }
     }
@@ -1042,6 +1047,7 @@ public static class HardwareControl
         if (wasNvidia)
         {
             NvmlHelper.Shutdown();
+            NvThermalChannels.Reset(); // cached NVAPI handles die with the driver session
             UnloadNvAPI();
         }
     }
