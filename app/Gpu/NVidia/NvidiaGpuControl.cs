@@ -233,37 +233,21 @@ public class NvidiaGpuControl : IGpuControl
 
     public double? CoreVoltage => NvThermalChannels.GetCoreVoltage();
 
-    // Silent one-shot poll for the tuning telemetry line: no Logger noise
-    // (RunCMD logs every call and this runs every couple of seconds)
-    public static (int coreMhz, int memMhz, double? watts)? ReadSmiTelemetry()
+    // Telemetry for the tuning line, read in-process: clocks from NVAPI, watts from
+    // NVML. This used to shell out to nvidia-smi every couple of seconds, which cost
+    // a process spawn per tick and could hang while the driver was being torn down.
+    // Both APIs return the same numbers (verified against nvidia-smi on RTX 4090
+    // Laptop / driver 591.74). Callers must skip a sleeping dGPU: these reads wake it.
+    public (int coreMhz, int memMhz, double? watts)? ReadTelemetry()
     {
+        if (!IsValid) return null;
+
         try
         {
-            using var p = new Process();
-            p.StartInfo.FileName = "nvidia-smi";
-            p.StartInfo.Arguments = "--query-gpu=clocks.gr,clocks.mem,power.draw --format=csv,noheader,nounits";
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.Start();
-
-            // The read itself needs the timeout: nvidia-smi can hang without printing a
-            // line (driver being torn down mid-Eco-switch) and a bare ReadLine would
-            // block this task forever, leaking the process and freezing the telemetry
-            var readTask = p.StandardOutput.ReadLineAsync();
-            if (!readTask.Wait(3000)) { try { p.Kill(); } catch { } return null; }
-            string line = readTask.Result ?? "";
-            if (!p.WaitForExit(2000)) { try { p.Kill(); } catch { } }
-
-            var parts = line.Split(',');
-            if (parts.Length < 3) return null;
-
-            var ci = System.Globalization.CultureInfo.InvariantCulture;
-            if (!double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Float, ci, out double core)) return null;
-            if (!double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, ci, out double mem)) return null;
-            double? watts = double.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Float, ci, out double w) ? w : null;
-
-            return ((int)core, (int)mem, watts);
+            var clocks = _internalGpu!.CurrentClockFrequencies;
+            return ((int)(clocks.GraphicsClock.Frequency / 1000),
+                    (int)(clocks.MemoryClock.Frequency / 1000),
+                    NvmlHelper.GetGpuPower());
         }
         catch
         {
