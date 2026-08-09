@@ -369,7 +369,7 @@ namespace GHelper
 
                 if (telemetryTimer == null)
                 {
-                    // Poll only while the GPU tab is in front: nvidia-smi queries keep
+                    // Poll only while the GPU tab is in front: the telemetry reads keep
                     // the dGPU awake, so they must stop the moment the tab is left
                     telemetryTimer = new System.Windows.Forms.Timer { Interval = 2000 };
                     telemetryTimer.Tick += TelemetryTick;
@@ -390,23 +390,23 @@ namespace GHelper
             Task.Run(() =>
             {
                 string text;
-                // An asleep dGPU is left asleep: nvidia-smi would wake it up
+                // An asleep dGPU is left asleep: an NVML power read wakes it up
                 if (!nv.IsGpuActive)
                 {
                     text = Properties.Strings.GpuSleeping;
                 }
                 else
                 {
-                    var smi = NvidiaGpuControl.ReadSmiTelemetry();
-                    if (smi is null)
+                    var telemetry = nv.ReadTelemetry();
+                    if (telemetry is null)
                     {
                         text = Properties.Strings.GpuSleeping;
                     }
                     else
                     {
-                        text = smi.Value.coreMhz + " MHz  /  " + smi.Value.memMhz + " MHz";
+                        text = telemetry.Value.coreMhz + " MHz  /  " + telemetry.Value.memMhz + " MHz";
                         if (nv.CoreVoltage is double volts) text += "   " + volts.ToString("0.000") + "V";
-                        if (smi.Value.watts is double w) text += "   " + Math.Round(w) + "W";
+                        if (telemetry.Value.watts is double w) text += "   " + Math.Round(w) + "W";
                     }
                 }
 
