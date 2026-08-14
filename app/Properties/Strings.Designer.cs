@@ -1197,6 +1197,60 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Intel RAPL · direct.
+        /// </summary>
+        internal static string PowerBackendMsr {
+            get {
+                return ResourceManager.GetString("PowerBackendMsr", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to ASUS ACPI.
+        /// </summary>
+        internal static string PowerBackendAcpi {
+            get {
+                return ResourceManager.GetString("PowerBackendAcpi", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to ASUS ACPI · PawnIO missing.
+        /// </summary>
+        internal static string PowerBackendAcpiNoDriver {
+            get {
+                return ResourceManager.GetString("PowerBackendAcpiNoDriver", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to the MSR backend tooltip.
+        /// </summary>
+        internal static string PowerBackendMsrTooltip {
+            get {
+                return ResourceManager.GetString("PowerBackendMsrTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to the ACPI backend tooltip.
+        /// </summary>
+        internal static string PowerBackendAcpiTooltip {
+            get {
+                return ResourceManager.GetString("PowerBackendAcpiTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to trimmed to {0}W to hold {1}°C.
+        /// </summary>
+        internal static string PowerTrimmedTo {
+            get {
+                return ResourceManager.GetString("PowerTrimmedTo", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Power Limit Response.
         /// </summary>
         internal static string PlTau {

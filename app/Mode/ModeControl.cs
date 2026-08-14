@@ -410,7 +410,7 @@ namespace GHelper.Mode
             if (UsesMsrPower())
             {
                 var msr = HardwareControl.IntelMsrSession()!;
-                double tau = AppConfig.Get("pl_dyn_tau", 2);
+                double tau = DynamicPowerLimitControl.TauSeconds;
                 msrApplied = msr.SetLimits(limit_total, limit_slow, tau);
                 if (msrApplied)
                 {

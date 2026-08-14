@@ -32,10 +32,15 @@ namespace GHelper.Mode
         static int Band => Math.Max(1, AppConfig.Get("pl_dyn_band", 4));          // °C below target before restoring
         static int MinPl => Math.Max(10, Math.Min(60, AppConfig.GetMode("pl_dyn_min", 20))); // trim floor, per mode
 
-        // RAPL averaging window used while trimming. The firmware default here is ~56 s,
-        // far too slow for a loop that ticks every 3 s - the cap would not bite before the
-        // next decision. 0 keeps whatever the firmware set.
-        static double Tau => AppConfig.Get("pl_dyn_tau", 2);
+        // RAPL averaging window, stored in milliseconds because the hardware encodes it as
+        // 2^Y * (1 + Z/4) time units and is useful well below a second. The firmware
+        // default here is ~56 s, far too slow for a loop that ticks every 3 s - the cap
+        // would not bite before the next decision. 0 keeps whatever the firmware set.
+        // Falls back to the old seconds-based key so existing configs carry over.
+        public static int TauMs => AppConfig.Get("pl_tau_ms", AppConfig.Get("pl_dyn_tau", 2) * 1000);
+        public static double TauSeconds => TauMs / 1000.0;
+
+        static double Tau => TauSeconds;
 
         static readonly System.Timers.Timer timer = new(TICK_MS);
         static readonly object plLock = new();

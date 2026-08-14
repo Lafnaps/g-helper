@@ -341,6 +341,7 @@ namespace GHelper
         private readonly ToolTip toolTip = new();
 
         private System.Windows.Forms.Timer? telemetryTimer;
+        private System.Windows.Forms.Timer? powerTimer;
         private bool telemetryBusy;
 
         private void InitGpuTelemetry()
@@ -366,6 +367,22 @@ namespace GHelper
                 telemetryTimer.Enabled = panelGPU.Visible;
                 if (panelGPU.Visible) TelemetryTick(null, EventArgs.Empty);
                 else labelGpuTelemetry.Text = " ";
+            };
+
+            // The power status used to refresh only from the Settings sensor loop, which
+            // stops while that window is hidden - so it stayed blank for anyone who opened
+            // Fans on its own. The CPU tab now keeps its own beat.
+            panelPower.VisibleChanged += (_, _) =>
+            {
+                if (powerTimer == null)
+                {
+                    powerTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                    powerTimer.Tick += (_, _) => UpdateDynPl();
+                    FormClosed += (_, _) => powerTimer.Stop();
+                }
+
+                powerTimer.Enabled = panelPower.Visible;
+                if (panelPower.Visible) UpdateDynPl();
             };
         }
 
@@ -596,14 +613,20 @@ namespace GHelper
                 labelRisky.Visible         = false;
                 panelUV.Visible            = false;
                 panelUViGPU.Visible        = false;
-                panelAdvancedApply.Visible = false;
-                panelAdvancedAlways.Visible = false;
-                panelAdvancedReadLimits.Visible = false;
             }
 
-            // Min PL and the live status belong to the dynamic PL loop — Intel only
+            // Apply / Auto Apply / Read limits all drive the Ryzen SMU (SetRyzen,
+            // AutoRyzen, ReadRyzenLimits): dead buttons on Intel, where the driver is
+            // there for MSR access rather than undervolting
+            bool ryzenLimits = installed && CpuInfo.IsAMD;
+            panelAdvancedApply.Visible = ryzenLimits;
+            panelAdvancedAlways.Visible = ryzenLimits;
+            panelAdvancedReadLimits.Visible = ryzenLimits;
+
+            // Min PL belongs to the dynamic PL loop — Intel only. The live status moved
+            // to the power section, next to the sliders it talks about.
             panelMinPL.Visible = dynPl;
-            labelDynPlStatus.Visible = dynPl;
+            labelDynPlStatus.Visible = false;
 
 
             labelUV.Text     = trackUV.Value.ToString();
@@ -618,14 +641,33 @@ namespace GHelper
             labelMinPL.Text = trackMinPL.Value + "W";
         }
 
-        // 0 means "leave the firmware's own averaging window alone"
-        private static string PlTauText(int seconds) =>
-            seconds > 0 ? seconds + "s" : Properties.Strings.PlTauDefault;
+        // The register holds the window as 2^Y * (1 + Z/4) time units, so the useful range
+        // runs from milliseconds to minutes - far too wide for a linear slider. The track
+        // indexes this table instead; 0 leaves the firmware's own window alone.
+        private static readonly int[] plTauMs =
+            { 0, 125, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 56000, 120000, 240000 };
+
+        private static string PlTauText(int ms) => ms switch
+        {
+            0 => Properties.Strings.PlTauDefault,
+            < 1000 => (ms / 1000.0).ToString("0.###") + "s",
+            < 60000 => (ms / 1000) + "s",
+            _ => (ms / 60000.0).ToString("0.#") + "min",
+        };
+
+        private static int PlTauIndex(int ms)
+        {
+            int best = 0;
+            for (int i = 1; i < plTauMs.Length; i++)
+                if (Math.Abs(plTauMs[i] - ms) < Math.Abs(plTauMs[best] - ms)) best = i;
+            return best;
+        }
 
         private void TrackPlTau_Scroll(object? sender, EventArgs e)
         {
-            AppConfig.Set("pl_dyn_tau", trackPlTau.Value);
-            labelPlTau.Text = PlTauText(trackPlTau.Value);
+            int ms = plTauMs[Math.Clamp(trackPlTau.Value, 0, plTauMs.Length - 1)];
+            AppConfig.Set("pl_tau_ms", ms);
+            labelPlTau.Text = PlTauText(ms);
         }
 
         // The window is programmed with the limit itself, so re-apply power on release
@@ -647,20 +689,31 @@ namespace GHelper
             float? temp = HardwareControl.cpuTemp;
             int target = AppConfig.GetMode("cpu_temp");
 
+            // Straight from the RAPL energy counter when the driver is there: the shared
+            // sensor value only exists while the Settings window is refreshing it
+            float? watts = HardwareControl.IntelMsrSession()?.GetPackagePower() ?? HardwareControl.cpuPower;
+
             try
             {
                 BeginInvoke(delegate
                 {
+                    // Live draw first: it is what the user is actually looking for, and it
+                    // makes the trim visible as a cause rather than a number out of nowhere
+                    string draw = watts is float w && w > 0 ? $"{(int)w}W now" : "";
+
                     if (trimming)
                     {
                         int offset = baseTotal - current;
-                        labelDynPlStatus.Text = $"Power limit: {current}W / {baseTotal}W  (CPU {(int)(temp ?? 0)}°C, target {target}°C)";
+                        string trim = string.Format(Properties.Strings.PowerTrimmedTo, current, target);
+                        labelPowerStatus.Text = draw.Length > 0 ? draw + " · " + trim : trim;
+                        labelPowerStatus.ForeColor = colorEco;
                         labelTotal.Text = trackTotal.Value + "W → " + Math.Max(current, trackTotal.Value - offset) + "W";
                         labelSlow.Text = trackSlow.Value + "W → " + Math.Max(10, trackSlow.Value - offset) + "W";
                     }
                     else
                     {
-                        labelDynPlStatus.Text = running ? $"Power limit: {baseTotal}W" : " ";
+                        labelPowerStatus.Text = draw.Length > 0 ? draw : " ";
+                        labelPowerStatus.ForeColor = RForm.foreMain;
                         labelTotal.Text = trackTotal.Value + "W";
                         labelSlow.Text = trackSlow.Value + "W";
                     }
@@ -697,7 +750,10 @@ namespace GHelper
                         labelLeftTemp.Enabled = plApplied;
                         labelLeftMinPL.Enabled = plApplied;
                         if (!plApplied && target > 0 && target < CpuInfo.DefaultTemp)
-                            labelDynPlStatus.Text = Properties.Strings.TempLimitNeedsPower;
+                        {
+                            labelPowerStatus.Text = Properties.Strings.TempLimitNeedsPower;
+                            labelPowerStatus.ForeColor = Color.Gray;
+                        }
                     }
                 });
             }
@@ -1486,12 +1542,22 @@ namespace GHelper
             trackFast.AccessibleName = labelLeftFast.Text;
             trackCPU.AccessibleName = labelLeftCPU.Text;
 
+            // Which backend actually carries the limits is invisible otherwise: the same
+            // sliders end up in the CPU's own RAPL register or in the ASUS PPT endpoints
+            bool msr = ModeControl.UsesMsrPower();
+            if (CpuInfo.IsAMD) labelPowerBackend.Text = "";
+            else if (msr) labelPowerBackend.Text = Properties.Strings.PowerBackendMsr;
+            else if (AppConfig.Is("pl_msr")) labelPowerBackend.Text = Properties.Strings.PowerBackendAcpiNoDriver;
+            else labelPowerBackend.Text = Properties.Strings.PowerBackendAcpi;
+            labelPowerBackend.ForeColor = msr ? colorStandard : Color.Gray;
+            toolTip.SetToolTip(labelPowerBackend, msr ? Properties.Strings.PowerBackendMsrTooltip : Properties.Strings.PowerBackendAcpiTooltip);
+
             // The averaging window exists only in the RAPL register: the ACPI PPT
             // endpoints have no such knob, so hide it unless that backend is in use
-            panelPlTau.Visible = ModeControl.UsesMsrPower();
-            int tau = Math.Max(trackPlTau.Minimum, Math.Min(trackPlTau.Maximum, AppConfig.Get("pl_dyn_tau", 2)));
-            trackPlTau.Value = tau;
-            labelPlTau.Text = PlTauText(tau);
+            panelPlTau.Visible = msr;
+            int tauMs = DynamicPowerLimitControl.TauMs;
+            trackPlTau.Value = Math.Clamp(PlTauIndex(tauMs), trackPlTau.Minimum, trackPlTau.Maximum);
+            labelPlTau.Text = PlTauText(tauMs);
             trackPlTau.AccessibleName = labelLeftPlTau.Text;
 
             SavePower();

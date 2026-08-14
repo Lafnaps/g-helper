@@ -133,6 +133,8 @@ namespace GHelper
             panelTitleCPU = new Panel();
             pictureBoxCPU = new PictureBox();
             labelPowerLimits = new Label();
+            labelPowerBackend = new Label();
+            labelPowerStatus = new Label();
             panelBoost = new Panel();
             panelBoostTitle = new Panel();
             pictureBoost = new PictureBox();
@@ -1104,7 +1106,7 @@ namespace GHelper
             //
             trackPlTau.Location = new Point(6, 48);
             trackPlTau.Margin = new Padding(4, 2, 4, 2);
-            trackPlTau.Maximum = 10;
+            trackPlTau.Maximum = 12;   // index into the tau table, not seconds
             trackPlTau.Minimum = 0;
             trackPlTau.SmallChange = 1;
             trackPlTau.LargeChange = 1;
@@ -1214,6 +1216,7 @@ namespace GHelper
             panelPower.AutoSize = true;
             panelPower.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             panelPower.Controls.Add(panelApplyPower);
+            panelPower.Controls.Add(labelPowerStatus);
             panelPower.Controls.Add(panelPlTau);
             panelPower.Controls.Add(panelCPU);
             panelPower.Controls.Add(panelFast);
@@ -1457,6 +1460,7 @@ namespace GHelper
             panelTitleCPU.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             panelTitleCPU.Controls.Add(pictureBoxCPU);
             panelTitleCPU.Controls.Add(labelPowerLimits);
+            panelTitleCPU.Controls.Add(labelPowerBackend);
             panelTitleCPU.Dock = DockStyle.Top;
             panelTitleCPU.Location = new Point(0, 248);
             panelTitleCPU.Margin = new Padding(4);
@@ -1486,6 +1490,27 @@ namespace GHelper
             labelPowerLimits.Size = new Size(160, 32);
             labelPowerLimits.TabIndex = 39;
             labelPowerLimits.Text = "Power Limits";
+            //
+            // labelPowerBackend
+            //
+            labelPowerBackend.AutoSize = true;
+            labelPowerBackend.Font = new Font("Segoe UI", 9F);
+            labelPowerBackend.Location = new Point(240, 16);
+            labelPowerBackend.Margin = new Padding(4, 0, 4, 0);
+            labelPowerBackend.Name = "labelPowerBackend";
+            labelPowerBackend.Size = new Size(160, 28);
+            labelPowerBackend.TabIndex = 40;
+            labelPowerBackend.Text = "";
+            //
+            // labelPowerStatus
+            //
+            labelPowerStatus.AutoSize = true;
+            labelPowerStatus.Dock = DockStyle.Top;
+            labelPowerStatus.Name = "labelPowerStatus";
+            labelPowerStatus.Padding = new Padding(14, 0, 8, 10);
+            labelPowerStatus.Size = new Size(520, 38);
+            labelPowerStatus.TabIndex = 41;
+            labelPowerStatus.Text = " ";
             // 
             // panelBoost
             // 
@@ -2184,6 +2209,8 @@ namespace GHelper
         private Label labelLeftTotal;
         private RTrackBar trackTotal;
         private Panel panelTitleCPU;
+        private Label labelPowerBackend;
+        private Label labelPowerStatus;
         private PictureBox pictureBoxCPU;
         private Label labelPowerLimits;
         private Panel panelGPU;
