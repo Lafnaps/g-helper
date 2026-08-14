@@ -189,6 +189,17 @@
   <data name="TempLimitNeedsPower" xml:space="preserve">
     <value>CPU Temp Limit requires Apply Power Limits</value>
   </data>
+  <data name="PlTau" xml:space="preserve">
+    <value>Power Limit Response</value>
+  </data>
+  <data name="PlTauDefault" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="PlTauTooltip" xml:space="preserve">
+    <value>How quickly the CPU is forced down to its power limit.
+Short values hold power steady, so temperature and fan speed stop surging; long values allow longer boosts before the limit bites.
+Default leaves the firmware's own window (about a minute on this laptop) untouched.</value>
+  </data>
   <data name="FanSyncTooltip" xml:space="preserve">
     <value>No fan is allowed below what its own curve prescribes at the hottest sensor (CPU or GPU). For shared-heatsink laptops where one fan idles while the other component is hot.</value>
   </data>
