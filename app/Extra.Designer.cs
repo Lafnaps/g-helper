@@ -49,6 +49,12 @@ namespace GHelper
             labelFNV = new Label();
             comboFNV = new RComboBox();
             textFNV = new RTextBox();
+            labelFNF10 = new Label();
+            comboFNF10 = new RComboBox();
+            textFNF10 = new RTextBox();
+            labelFNF11 = new Label();
+            comboFNF11 = new RComboBox();
+            textFNF11 = new RTextBox();
             labelFNC = new Label();
             comboFNC = new RComboBox();
             textFNC = new RTextBox();
@@ -318,9 +324,15 @@ namespace GHelper
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+            tableBindings.Controls.Add(labelFNF11, 0, 10);
+            tableBindings.Controls.Add(comboFNF11, 1, 10);
+            tableBindings.Controls.Add(textFNF11, 2, 10);
+            tableBindings.Controls.Add(labelFNF10, 0, 9);
+            tableBindings.Controls.Add(comboFNF10, 1, 9);
+            tableBindings.Controls.Add(textFNF10, 2, 9);
             tableBindings.Controls.Add(labelFNE, 0, 8);
-            tableBindings.Controls.Add(comboFNE, 0, 8);
-            tableBindings.Controls.Add(textFNE, 0, 8);
+            tableBindings.Controls.Add(comboFNE, 1, 8);
+            tableBindings.Controls.Add(textFNE, 2, 8);
             tableBindings.Controls.Add(labelFNV, 0, 7);
             tableBindings.Controls.Add(comboFNV, 1, 7);
             tableBindings.Controls.Add(textFNV, 2, 7);
@@ -350,7 +362,9 @@ namespace GHelper
             tableBindings.Margin = new Padding(0, 3, 5, 3);
             tableBindings.Name = "tableBindings";
             tableBindings.Padding = new Padding(16, 11, 0, 11);
-            tableBindings.RowCount = 9;
+            tableBindings.RowCount = 11;
+            tableBindings.RowStyles.Add(new RowStyle());
+            tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
@@ -430,9 +444,71 @@ namespace GHelper
             textFNV.Size = new Size(360, 39);
             textFNV.TabIndex = 18;
             textFNV.TabStop = false;
-            // 
+            //
+            // labelFNF10
+            //
+            labelFNF10.AutoSize = true;
+            labelFNF10.Margin = new Padding(0);
+            labelFNF10.Name = "labelFNF10";
+            labelFNF10.Padding = new Padding(5, 11, 0, 0);
+            labelFNF10.Size = new Size(85, 43);
+            labelFNF10.TabIndex = 19;
+            labelFNF10.Text = "FN+F10:";
+            //
+            // comboFNF10
+            //
+            comboFNF10.BorderColor = Color.White;
+            comboFNF10.ButtonColor = Color.FromArgb(255, 255, 255);
+            comboFNF10.Dock = DockStyle.Top;
+            comboFNF10.FormattingEnabled = true;
+            comboFNF10.Margin = new Padding(5, 3, 5, 3);
+            comboFNF10.Name = "comboFNF10";
+            comboFNF10.Size = new Size(358, 40);
+            comboFNF10.TabIndex = 9;
+            //
+            // textFNF10
+            //
+            textFNF10.Dock = DockStyle.Top;
+            textFNF10.Margin = new Padding(5, 3, 5, 3);
+            textFNF10.Name = "textFNF10";
+            textFNF10.PlaceholderText = "action";
+            textFNF10.Size = new Size(360, 39);
+            textFNF10.TabIndex = 20;
+            textFNF10.TabStop = false;
+            //
+            // labelFNF11
+            //
+            labelFNF11.AutoSize = true;
+            labelFNF11.Margin = new Padding(0);
+            labelFNF11.Name = "labelFNF11";
+            labelFNF11.Padding = new Padding(5, 11, 0, 0);
+            labelFNF11.Size = new Size(85, 43);
+            labelFNF11.TabIndex = 21;
+            labelFNF11.Text = "FN+F11:";
+            //
+            // comboFNF11
+            //
+            comboFNF11.BorderColor = Color.White;
+            comboFNF11.ButtonColor = Color.FromArgb(255, 255, 255);
+            comboFNF11.Dock = DockStyle.Top;
+            comboFNF11.FormattingEnabled = true;
+            comboFNF11.Margin = new Padding(5, 3, 5, 3);
+            comboFNF11.Name = "comboFNF11";
+            comboFNF11.Size = new Size(358, 40);
+            comboFNF11.TabIndex = 10;
+            //
+            // textFNF11
+            //
+            textFNF11.Dock = DockStyle.Top;
+            textFNF11.Margin = new Padding(5, 3, 5, 3);
+            textFNF11.Name = "textFNF11";
+            textFNF11.PlaceholderText = "action";
+            textFNF11.Size = new Size(360, 39);
+            textFNF11.TabIndex = 22;
+            textFNF11.TabStop = false;
+            //
             // labelFNC
-            // 
+            //
             labelFNC.AutoSize = true;
             labelFNC.Location = new Point(16, 241);
             labelFNC.Margin = new Padding(0);
@@ -1786,6 +1862,12 @@ namespace GHelper
         private TableLayoutPanel tableBindings;
         private Label labelFNC;
         private Label labelFNV;
+        private Label labelFNF10;
+        private RComboBox comboFNF10;
+        private RTextBox textFNF10;
+        private Label labelFNF11;
+        private RComboBox comboFNF11;
+        private RTextBox textFNF11;
         private RTextBox textM2;
         private RTextBox textM1;
         private RComboBox comboM1;
