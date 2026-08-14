@@ -625,6 +625,10 @@ namespace GHelper.Input
                     action = "visual";
                 if (name == "fne")
                     action = "calculator";
+                if (name == "fnf10")
+                    action = "touchpad";
+                if (name == "fnf11")
+                    action = "sleep";
             }
 
             switch (action)
@@ -717,6 +721,12 @@ namespace GHelper.Input
                     break;
                 case "touchscreen":
                     ToggleTouchScreen();
+                    break;
+                case "touchpad":
+                    ToggleTouchpadEvent();
+                    break;
+                case "sleep":
+                    SleepEvent();
                     break;
                 default:
                     break;
@@ -1038,11 +1048,13 @@ namespace GHelper.Input
                     ToggleCamera();
                     break;
                 case 107: // FN+F10
-                    ToggleTouchpadEvent();
+                    KeyProcess("fnf10");
                     break;
                 case 108: // FN+F11
-                    if (!AppConfig.IsHardwareHotkeys()) SleepEvent();
-                    else lastSleep = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                    // Models with hardware hotkeys sleep on their own: only note the time
+                    // so the event does not sleep a second time
+                    if (AppConfig.IsHardwareHotkeys()) lastSleep = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                    else KeyProcess("fnf11");
                     break;
                 case 106: // Screenpad button on DUO
                     if (Control.ModifierKeys == Keys.Shift)
