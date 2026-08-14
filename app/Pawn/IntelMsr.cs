@@ -14,6 +14,7 @@ namespace PawnIO
         private double _timeUnit;
         private uint _lastEnergy;
         private long _lastTick;
+        private float _lastWatts;
 
         public bool IsInitialized => _init;
 
@@ -52,13 +53,17 @@ namespace PawnIO
             if (_lastTick == 0) { _lastEnergy = energy; _lastTick = tick; return null; }
 
             double seconds = (tick - _lastTick) / 1000.0;
-            if (seconds < 0.05) return null;
+            // The counter is read as a delta, so two callers (the sensor loop and the
+            // Fans window) would each consume part of the interval and both read low:
+            // hand back the last figure until a meaningful interval has passed
+            if (seconds < 0.4) return _lastWatts > 0 ? _lastWatts : null;
 
-            double joules = unchecked(energy - _lastEnergy) * _energyUnit; 
+            double joules = unchecked(energy - _lastEnergy) * _energyUnit;
             _lastEnergy = energy;
             _lastTick = tick;
 
-            return (float)(joules / seconds);
+            _lastWatts = (float)(joules / seconds);
+            return _lastWatts;
         }
 
         // MSR_PKG_POWER_LIMIT: [14:0] PL1, [15] PL1 enable, [16] clamp, [23:17] PL1 time
