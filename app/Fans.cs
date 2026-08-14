@@ -81,6 +81,7 @@ namespace GHelper
             checkFanSync.Text = Properties.Strings.FanSyncMaxTemp;
             checkFanHyst.Text = Properties.Strings.FanStopHysteresis;
             labelLeftMinPL.Text = Properties.Strings.MinPowerLimit;
+            labelLeftPlTau.Text = Properties.Strings.PlTau;
             checkFanHyst.Left = checkFanSync.Right + 8;
             labelHysteresisUp.Text = Properties.Strings.HysteresisUp;
             labelHysteresisDown.Text = Properties.Strings.HysteresisDown;
@@ -286,6 +287,9 @@ namespace GHelper
             trackUViGPU.Scroll += TrackUV_Scroll;
             trackTemp.Scroll += TrackUV_Scroll;
             trackMinPL.Scroll += TrackMinPL_Scroll;
+            trackPlTau.Scroll += TrackPlTau_Scroll;
+            trackPlTau.MouseUp += TrackPlTau_Commit;
+            trackPlTau.KeyUp += TrackPlTau_Commit;
 
             buttonApplyAdvanced.Click += ButtonApplyAdvanced_Click;
             buttonReadLimits.Click += ButtonReadLimits_Click;
@@ -345,6 +349,7 @@ namespace GHelper
             toolTip.SetToolTip(checkFanHyst, Properties.Strings.FanHystTooltip);
             toolTip.SetToolTip(buttonCalibrate, Properties.Strings.CalibrateTooltip);
             toolTip.SetToolTip(trackMinPL, Properties.Strings.MinPlTooltip);
+            toolTip.SetToolTip(trackPlTau, Properties.Strings.PlTauTooltip);
             toolTip.SetToolTip(labelGpuTelemetry, Properties.Strings.GpuTelemetryTooltip);
             if (!CpuInfo.IsAMD) toolTip.SetToolTip(trackTemp, Properties.Strings.CpuTempLimitTooltip);
 
@@ -618,6 +623,7 @@ namespace GHelper
             panelMinPL.Visible = dynPl;
             labelDynPlStatus.Visible = dynPl;
 
+
             labelUV.Text     = trackUV.Value.ToString();
             labelUViGPU.Text = trackUViGPU.Value.ToString();
 
@@ -628,6 +634,22 @@ namespace GHelper
         {
             AppConfig.SetMode("pl_dyn_min", trackMinPL.Value);
             labelMinPL.Text = trackMinPL.Value + "W";
+        }
+
+        // 0 means "leave the firmware's own averaging window alone"
+        private static string PlTauText(int seconds) =>
+            seconds > 0 ? seconds + "s" : Properties.Strings.PlTauDefault;
+
+        private void TrackPlTau_Scroll(object? sender, EventArgs e)
+        {
+            AppConfig.Set("pl_dyn_tau", trackPlTau.Value);
+            labelPlTau.Text = PlTauText(trackPlTau.Value);
+        }
+
+        // The window is programmed with the limit itself, so re-apply power on release
+        private void TrackPlTau_Commit(object? sender, EventArgs e)
+        {
+            Task.Run(() => modeControl.AutoPower(true));
         }
 
         // Live view of the dynamic PL loop: status line on the Advanced tab and
@@ -1505,6 +1527,14 @@ namespace GHelper
             trackGPUtoCPU.AccessibleName = labelLeftGPUtoCPU.Text;
             trackCPUTemp.AccessibleName = labelLeftCPUTemp.Text;
 
+            // The averaging window exists only in the RAPL register: the ACPI PPT
+            // endpoints have no such knob, so hide it unless that backend is in use
+            panelPlTau.Visible = ModeControl.UsesMsrPower();
+            int tau = Math.Max(trackPlTau.Minimum, Math.Min(trackPlTau.Maximum, AppConfig.Get("pl_dyn_tau", 2)));
+            trackPlTau.Value = tau;
+            labelPlTau.Text = PlTauText(tau);
+            trackPlTau.AccessibleName = labelLeftPlTau.Text;
+
             SavePower();
 
         }
@@ -1615,7 +1645,9 @@ namespace GHelper
             LoadProfile(seriesCPU, AsusFan.CPU);
             LoadProfile(seriesGPU, AsusFan.GPU);
 
-            bool autoFans = AppConfig.IsApplyPower() && AppConfig.IsFanRequired();
+            // With the MSR backend power limits no longer force fan curves on, so they
+            // must not light the charts up either — stock fans stay in charge
+            bool autoFans = AppConfig.IsApplyPower() && AppConfig.IsFanRequired() && !ModeControl.UsesMsrPower();
             bool applyFans = AppConfig.IsApplyFans();
 
             checkApplyFans.Checked = applyFans;

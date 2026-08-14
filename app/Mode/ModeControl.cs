@@ -317,7 +317,11 @@ namespace GHelper.Mode
             bool applyPower = AppConfig.IsApplyPower();
             bool applyFans = AppConfig.IsApplyFans();
 
-            if (applyPower && !applyFans && AppConfig.IsFanRequired())
+            // Models in IsFanRequired lose sane fan behaviour when PPT is written through
+            // ACPI without curves, so upstream forces curves on. Going through the CPU's
+            // own RAPL register never touches that endpoint, so the workaround - and the
+            // custom curves it drags in - is not needed.
+            if (applyPower && !applyFans && AppConfig.IsFanRequired() && !UsesMsrPower())
             {
                 AutoFans(true);
                 Thread.Sleep(500);
@@ -368,6 +372,15 @@ namespace GHelper.Mode
             if (init) Logger.WriteLine($"STAPM: {limit_total}W {stapm} | SLOW: {limit_slow}W {slow} | FAST: {limit_fast}W {fast}");
         }
 
+        /// <summary>
+        /// True when CPU package limits are driven through the RAPL MSR instead of the ASUS
+        /// ACPI PPT endpoints. Opt-in (needs PawnIO), Intel only.
+        /// </summary>
+        public static bool UsesMsrPower()
+            => !CpuInfo.IsAMD
+               && AppConfig.Is("pl_msr")
+               && HardwareControl.IntelMsrSession() is not null;
+
         public void SetPower(bool launchAsAdmin = false)
         {
 
@@ -394,7 +407,23 @@ namespace GHelper.Mode
             if (limit_slow < AsusACPI.MinTotal) return;
 
             // SPL and SPPT
-            if (Program.acpi.IsSupported(AsusACPI.PPT_APUA0))
+            bool msrApplied = false;
+            if (UsesMsrPower())
+            {
+                var msr = HardwareControl.IntelMsrSession()!;
+                double tau = AppConfig.Get("pl_dyn_tau", 2);
+                msrApplied = msr.SetLimits(limit_total, limit_slow, tau);
+                if (msrApplied)
+                {
+                    customPower = limit_total;
+                    Logger.WriteLine($"PowerLimit RAPL PL1 = {limit_total}W PL2 = {limit_slow}W (tau {tau}s)");
+                }
+                // A rejected RAPL write must not leave the machine unlimited: fall through
+                // to ACPI rather than silently applying nothing
+                else Logger.WriteLine("PowerLimit RAPL write rejected, using ACPI");
+            }
+
+            if (!msrApplied && Program.acpi.IsSupported(AsusACPI.PPT_APUA0))
             {
                 Program.acpi.DeviceSet(AsusACPI.PPT_APUA3, limit_total, "PowerLimit A3");
                 Program.acpi.DeviceSet(AsusACPI.PPT_APUA0, limit_slow, "PowerLimit A0");
