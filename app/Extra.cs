@@ -46,6 +46,8 @@ namespace GHelper
               {"brightness_up", Properties.Strings.BrightnessUp},
               {"visual", Properties.Strings.VisualMode},
               {"touchscreen", Properties.Strings.ToggleTouchscreen },
+              {"touchpad", Properties.Strings.ToggleTouchpad },
+              {"sleep", Properties.Strings.Sleep},
               {"micmute", Properties.Strings.MuteMic},
               {"ghelper", Properties.Strings.OpenGHelper},
               {"overlay", Properties.Strings.Overlay},
@@ -99,6 +101,14 @@ namespace GHelper
                     break;
                 case "fne":
                     customActions[""] = "Calculator";
+                    break;
+                case "fnf10":
+                    customActions[""] = Properties.Strings.ToggleTouchpad;
+                    customActions.Remove("touchpad");
+                    break;
+                case "fnf11":
+                    customActions[""] = Properties.Strings.Sleep;
+                    customActions.Remove("sleep");
                     break;
                 case "paddle":
                     customActions[""] = EMPTY;
@@ -313,6 +323,11 @@ namespace GHelper
                 SetKeyCombo(comboFNC, textFNC, "fnc");
                 SetKeyCombo(comboFNV, textFNV, "fnv");
                 SetKeyCombo(comboFNE, textFNE, "fne");
+
+                // Firmware sends codes for these two, so they can carry any action
+                // instead of the fixed touchpad / sleep the switch used to hardcode
+                SetKeyCombo(comboFNF10, textFNF10, "fnf10");
+                SetKeyCombo(comboFNF11, textFNF11, "fnf11");
             }
 
             if (AppConfig.IsStrix())

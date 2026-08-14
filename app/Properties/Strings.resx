@@ -189,6 +189,9 @@
   <data name="TempLimitNeedsPower" xml:space="preserve">
     <value>CPU Temp Limit requires Apply Power Limits</value>
   </data>
+  <data name="ToggleTouchpad" xml:space="preserve">
+    <value>Toggle Touchpad</value>
+  </data>
   <data name="PowerBackendMsr" xml:space="preserve">
     <value>Intel RAPL · direct</value>
   </data>
