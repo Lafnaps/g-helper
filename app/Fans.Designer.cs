@@ -97,6 +97,10 @@ namespace GHelper
             labelMinPL = new Label();
             labelLeftMinPL = new Label();
             trackMinPL = new RTrackBar();
+            panelPlTau = new Panel();
+            labelPlTau = new Label();
+            labelLeftPlTau = new Label();
+            trackPlTau = new RTrackBar();
             labelDynPlStatus = new Label();
             labelTemp = new Label();
             labelLeftTemp = new Label();
@@ -211,6 +215,8 @@ namespace GHelper
             ((System.ComponentModel.ISupportInitialize)pictureUV).BeginInit();
             panelTemperature.SuspendLayout();
             panelMinPL.SuspendLayout();
+            panelPlTau.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)trackPlTau).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackTemp).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackMinPL).BeginInit();
             panelTitleTemp.SuspendLayout();
@@ -1077,6 +1083,55 @@ namespace GHelper
             trackMinPL.TickFrequency = 5;
             trackMinPL.TickStyle = TickStyle.TopLeft;
             //
+            // panelPlTau
+            //
+            panelPlTau.AutoSize = true;
+            panelPlTau.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            panelPlTau.Controls.Add(labelPlTau);
+            panelPlTau.Controls.Add(labelLeftPlTau);
+            panelPlTau.Controls.Add(trackPlTau);
+            panelPlTau.Dock = DockStyle.Top;
+            panelPlTau.Margin = new Padding(4);
+            panelPlTau.MaximumSize = new Size(0, 124);
+            panelPlTau.Name = "panelPlTau";
+            panelPlTau.Size = new Size(520, 124);
+            panelPlTau.TabIndex = 3;
+            //
+            // labelPlTau
+            //
+            labelPlTau.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            labelPlTau.Location = new Point(347, 13);
+            labelPlTau.Margin = new Padding(4, 0, 4, 0);
+            labelPlTau.Name = "labelPlTau";
+            labelPlTau.Size = new Size(148, 32);
+            labelPlTau.TabIndex = 15;
+            labelPlTau.Text = "2s";
+            labelPlTau.TextAlign = ContentAlignment.TopRight;
+            //
+            // labelLeftPlTau
+            //
+            labelLeftPlTau.AutoSize = true;
+            labelLeftPlTau.Location = new Point(10, 10);
+            labelLeftPlTau.Margin = new Padding(4, 0, 4, 0);
+            labelLeftPlTau.Name = "labelLeftPlTau";
+            labelLeftPlTau.Size = new Size(183, 32);
+            labelLeftPlTau.TabIndex = 14;
+            labelLeftPlTau.Text = "Power Limit Response";
+            //
+            // trackPlTau
+            //
+            trackPlTau.Location = new Point(6, 48);
+            trackPlTau.Margin = new Padding(4, 2, 4, 2);
+            trackPlTau.Maximum = 10;
+            trackPlTau.Minimum = 0;
+            trackPlTau.SmallChange = 1;
+            trackPlTau.LargeChange = 1;
+            trackPlTau.Name = "trackPlTau";
+            trackPlTau.Size = new Size(508, 90);
+            trackPlTau.TabIndex = 13;
+            trackPlTau.TickFrequency = 1;
+            trackPlTau.TickStyle = TickStyle.TopLeft;
+            //
             // labelDynPlStatus
             //
             labelDynPlStatus.AutoSize = true;
@@ -1180,6 +1235,7 @@ namespace GHelper
             panelPower.Controls.Add(panelCPUTemp);
             panelPower.Controls.Add(panelGPUtoCPU);
             panelPower.Controls.Add(panelCrossLoad);
+            panelPower.Controls.Add(panelPlTau);
             panelPower.Controls.Add(panelCPU);
             panelPower.Controls.Add(panelFast);
             panelPower.Controls.Add(panelSlow);
@@ -2211,8 +2267,11 @@ namespace GHelper
             panelTemperature.PerformLayout();
             panelMinPL.ResumeLayout(false);
             panelMinPL.PerformLayout();
+            panelPlTau.ResumeLayout(false);
+            panelPlTau.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackTemp).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackMinPL).EndInit();
+            ((System.ComponentModel.ISupportInitialize)trackPlTau).EndInit();
             panelTitleTemp.ResumeLayout(false);
             panelTitleTemp.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureTemp).EndInit();
@@ -2377,6 +2436,10 @@ namespace GHelper
         private Label labelMinPL;
         private Label labelLeftMinPL;
         private RTrackBar trackMinPL;
+        private Panel panelPlTau;
+        private Label labelPlTau;
+        private Label labelLeftPlTau;
+        private RTrackBar trackPlTau;
         private Label labelDynPlStatus;
         private Label labelGpuTelemetry;
         private Label labelTemp;

@@ -789,25 +789,40 @@ public static class HardwareControl
     private static PawnIO.IntelMsr? _intelMsr;
     private static bool _intelMsrPowerFailed;
 
-    private static float? GetIntelMsrPower()
+    /// <summary>
+    /// Shared Intel MSR session (PawnIO), created on first use. Null when PawnIO is not
+    /// installed or the module refuses to load - callers must fall back to ACPI.
+    /// </summary>
+    public static PawnIO.IntelMsr? IntelMsrSession()
     {
         if (_intelMsrPowerFailed || PawnIO.CpuInfo.IsAMD) return null;
+        if (_intelMsr != null) return _intelMsr;
         try
         {
-            if (_intelMsr == null)
+            var msr = new PawnIO.IntelMsr();
+            if (!msr.Initialize(typeof(HardwareControl).Assembly))
             {
-                var msr = new PawnIO.IntelMsr();
-                if (!msr.Initialize(typeof(HardwareControl).Assembly))
-                {
-                    msr.Dispose();
-                    _intelMsrPowerFailed = true;
-                    Logger.WriteLine("Intel MSR: PawnIO/IntelMSR module unavailable (not installed?)");
-                    return null;
-                }
-                _intelMsr = msr;
-                Logger.WriteLine("CPU Power source: Intel RAPL MSR (PawnIO)");
+                msr.Dispose();
+                _intelMsrPowerFailed = true;
+                Logger.WriteLine("Intel MSR: PawnIO/IntelMSR module unavailable (not installed?)");
+                return null;
             }
-            float? power = _intelMsr.GetPackagePower();
+            _intelMsr = msr;
+            Logger.WriteLine("Intel MSR session ready (PawnIO)");
+        }
+        catch (Exception ex)
+        {
+            _intelMsrPowerFailed = true;
+            Logger.WriteLine("Intel MSR init failed: " + ex.Message);
+        }
+        return _intelMsr;
+    }
+
+    private static float? GetIntelMsrPower()
+    {
+        try
+        {
+            float? power = IntelMsrSession()?.GetPackagePower();
             return power > 0 ? power : null;
         }
         catch (Exception ex)

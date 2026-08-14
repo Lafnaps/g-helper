@@ -1215,6 +1215,33 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Power Limit Response.
+        /// </summary>
+        internal static string PlTau {
+            get {
+                return ResourceManager.GetString("PlTau", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Default.
+        /// </summary>
+        internal static string PlTauDefault {
+            get {
+                return ResourceManager.GetString("PlTauDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to the power limit response tooltip.
+        /// </summary>
+        internal static string PlTauTooltip {
+            get {
+                return ResourceManager.GetString("PlTauTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Sync Fans to Hottest Sensor.
         /// </summary>
         internal static string FanSyncMaxTemp {
