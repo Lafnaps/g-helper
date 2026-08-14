@@ -91,8 +91,17 @@ namespace GHelper.AutoUpdate
                             url = assets[i].GetProperty("browser_download_url").ToString();
                     }
 
-                    if (url is null)
+                    if (url is null && assets.GetArrayLength() > 0)
                         url = assets[0].GetProperty("browser_download_url").ToString();
+
+                    // A release published moments ago has no binaries until the build
+                    // workflow uploads them: not an error, just check again later
+                    if (url is null)
+                    {
+                        Logger.WriteLine($"Update {tag}: no assets yet, will retry");
+                        lastUpdate = 0;
+                        return;
+                    }
 
                     var gitVersion = new Version(tag);
                     var appVersion = new Version(Assembly.GetExecutingAssembly().GetName().Version.ToString());
@@ -136,6 +145,9 @@ namespace GHelper.AutoUpdate
             }
             catch (Exception ex)
             {
+                // A failed attempt must not eat the 12h window, or one network hiccup
+                // leaves the app blind to updates until the next restart
+                lastUpdate = 0;
                 Logger.WriteLine("Failed to check for updates:" + ex.Message);
             }
 
