@@ -48,6 +48,7 @@ namespace GHelper
               {"touchscreen", Properties.Strings.ToggleTouchscreen },
               {"touchpad", Properties.Strings.ToggleTouchpad },
               {"sleep", Properties.Strings.Sleep},
+              {"calculator", "Calculator"},
               {"micmute", Properties.Strings.MuteMic},
               {"ghelper", Properties.Strings.OpenGHelper},
               {"overlay", Properties.Strings.Overlay},
@@ -101,6 +102,7 @@ namespace GHelper
                     break;
                 case "fne":
                     customActions[""] = "Calculator";
+                    customActions.Remove("calculator");
                     break;
                 case "fnf10":
                     customActions[""] = Properties.Strings.ToggleTouchpad;
