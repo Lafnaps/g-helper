@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -19,7 +19,7 @@
     <OutputPath>bin\x64\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\x64\$(Configuration)\</IntermediateOutputPath>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <AssemblyVersion>0.280</AssemblyVersion>
+    <AssemblyVersion>0.280.1</AssemblyVersion>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
   </PropertyGroup>
 
@@ -88,3 +88,4 @@
 		<Exec Command="powershell -NoProfile -Command &quot;$exe = '$(PublishDir)GHelper.exe'; for ($i = 0; $i -lt 30; $i++) { try { [IO.File]::Open($exe, 'Open', 'Read', 'None').Close(); break } catch { Start-Sleep -Milliseconds 200 } }; Compress-Archive -Path $exe -DestinationPath '$(PublishDir)GHelper.zip' -Force&quot;" />
 	</Target>
 </Project>
+
