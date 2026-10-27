@@ -483,6 +483,7 @@ namespace GHelper.Peripherals
             DetectMouse(new GladiusIIOriginPink());
             DetectMouse(new GladiusIIOriginCOD());
             DetectMouse(new GladiusII());
+            DetectMouse(new GladiusIICore());
             DetectMouse(new GladiusIIWireless());
             DetectMouse(new KerisWireless());
             DetectMouse(new KerisWirelessWired());
@@ -503,6 +504,7 @@ namespace GHelper.Peripherals
             DetectMouse(new HarpeAceAimLabEditionWired());
             DetectMouse(new HarpeAceExtremeWeird());
             DetectMouse(new HarpeAceMiniWired());
+            DetectMouse(new HarpeMiniCore());
             DetectMouse(new HarpeIIAceWired());
             DetectMouse(new TUFM3());
             DetectMouse(new TUFM3GenII());
@@ -533,6 +535,7 @@ namespace GHelper.Peripherals
             DetectMouse(new MD200());
             DetectMouse(new BalteusQi());
             DetectMouse(new Balteus());
+            DetectMouse(new BulwarkDock());
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
@@ -586,6 +589,7 @@ namespace GHelper.Peripherals
             DetectHeadset(new CetraSpeedNova());
             DetectHeadset(new Clavis());
             DetectHeadset(new CetraRgb());
+            DetectHeadset(new StrixGo24());
         }
 
         public static void DetectHeadset(AsusHeadset hs)

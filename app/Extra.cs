@@ -46,8 +46,8 @@ namespace GHelper
               {"brightness_down", Properties.Strings.BrightnessDown},
               {"brightness_up", Properties.Strings.BrightnessUp},
               {"visual", Properties.Strings.VisualMode},
+              {"touchpad", Properties.Strings.ToggleTouchpad},
               {"touchscreen", Properties.Strings.ToggleTouchscreen },
-              {"touchpad", Properties.Strings.ToggleTouchpad },
               {"sleep", Properties.Strings.Sleep},
               {"calculator", "Calculator"},
               {"micmute", Properties.Strings.MuteMic},
@@ -260,6 +260,12 @@ namespace GHelper
                 labelM3.Visible = comboM3.Visible = textM3.Visible = false;
                 labelFNF4.Visible = comboFNF4.Visible = textFNF4.Visible = false;
                 labelM4.Text = "FN+F12";
+            }
+
+            if (AppConfig.IsProArt())
+            {
+                labelFNC.Visible = comboFNC.Visible = textFNC.Visible = false;
+                labelFNV.Text = "FN+C";
             }
 
             if (AppConfig.MediaKeys())

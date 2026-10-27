@@ -94,6 +94,7 @@ namespace GHelper
             labelSreen.Text = Properties.Strings.LaptopScreen;
             UpdateKeyboardLabel();
             labelMatrix.Text = Properties.Strings.AnimeMatrix;
+            labelRearLight.Text = Properties.Strings.RearLight;
             labelBatteryTitle.Text = Properties.Strings.BatteryChargeLimit;
 
             checkStartup.Text = Properties.Strings.RunOnStartup;
@@ -330,7 +331,7 @@ namespace GHelper
 
         private void ButtonEnergySaver_Click(object? sender, EventArgs e)
         {
-            KeyboardHook.KeyKeyPress(Keys.LWin, Keys.A);
+            PowerNative.SetEnergySaver(false);
         }
 
         private void LabelBacklight_Click(object? sender, EventArgs e)
@@ -431,6 +432,10 @@ namespace GHelper
 
             panelGamma.Visible = true;
             tableVisual.Visible = true;
+
+            comboVisual.SelectedValueChanged -= ComboVisual_SelectedValueChanged;
+            comboColorTemp.SelectedValueChanged -= ComboVisual_SelectedValueChanged;
+            comboGamut.SelectedValueChanged -= ComboGamut_SelectedValueChanged;
 
             var visualValue = (SplendidCommand)AppConfig.Get("visual", (int)VisualControl.GetDefaultVisualMode());
             var colorTempValue = AppConfig.Get("color_temp", VisualControl.DefaultColorTemp);
@@ -677,8 +682,9 @@ namespace GHelper
                 return;
             }
 
-            Left = Screen.FromControl(this).WorkingArea.Width - 10 - Width;
-            Top = Screen.FromControl(this).WorkingArea.Height - 10 - Height;
+            var screen = Screen.FromControl(this);
+            Left = screen.WorkingArea.Right - 10 - Width;
+            Top = screen.WorkingArea.Top - screen.Bounds.Top > screen.Bounds.Bottom - screen.WorkingArea.Bottom ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - Height;
         }
 
         private void PanelBattery_MouseEnter(object? sender, EventArgs e)
@@ -808,7 +814,9 @@ namespace GHelper
                         case 1:
                             Logger.WriteLine("Monitor Power On");
                             GPUModeControl.suspended = false;
+                            Thread.Sleep(1000);
                             if (!Program.SetAutoModes(wakeup: true)) BatteryControl.AutoBattery();
+                            Task.Delay(2000).ContinueWith(_ => InputDispatcher.InitFNLock());
                             Program.hardwareOverlay?.ResumeForDisplayOn();
                             break;
                         case 2:
@@ -2130,7 +2138,7 @@ namespace GHelper
 
                 Image? baseIcon = m.DeviceType() switch
                 {
-                    PeripheralType.Mouse => Properties.Resources.icons8_maus_48,
+                    PeripheralType.Mouse => ((AsusMouse)m).Icon(),
                     PeripheralType.Keyboard => Properties.Resources.icons8_keyboard_48,
                     PeripheralType.Headset => Properties.Resources.icons8_headphones_48,
                     _ => null,

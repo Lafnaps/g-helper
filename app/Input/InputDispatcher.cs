@@ -117,7 +117,6 @@ namespace GHelper.Input
         public static void InitFNLock()
         {
             if (!IsHardwareFnLock()) return;
-            AsusHid.InitInput();
             HardwareFnLock(AppConfig.Is("fn_lock"));
         }
 
@@ -162,7 +161,7 @@ namespace GHelper.Input
 
             if (!AppConfig.Is("skip_hotkeys"))
             {
-                if (AppConfig.IsDUO() || (AppConfig.IsVivoZenbook() && AppConfig.IsOLED()))
+                if (AppConfig.IsDUO() || (AppConfig.IsVivoZenPro() && AppConfig.IsOLED()))
                 {
                     hook.RegisterHotKey(keyModifierAlt, Keys.F7);
                     hook.RegisterHotKey(keyModifierAlt, Keys.F8);
@@ -723,7 +722,8 @@ namespace GHelper.Input
                     ToggleTouchScreen();
                     break;
                 case "touchpad":
-                    ToggleTouchpadEvent();
+                    // FN+F10 may already be handled by firmware; other bindings must toggle explicitly.
+                    ToggleTouchpadEvent(name != "fnf10");
                     break;
                 case "sleep":
                     SleepEvent();
@@ -745,6 +745,11 @@ namespace GHelper.Input
             Program.acpi.DeviceSet(AsusACPI.SoundMuteLed, muted ? 1 : 0, "SoundLed");
         }
 
+        static void MicMuteLED(bool muted)
+        {
+            if (AppConfig.IsDUO()) AsusHid.WriteInput([AsusHid.INPUT_ID, 0xD0, 0x7C, muted ? (byte)0x01 : (byte)0x00], "USB MicmuteLed");
+        }
+
         static void ToggleTouchScreen()
         {
             var status = !TouchscreenHelper.GetStatus();
@@ -761,12 +766,14 @@ namespace GHelper.Input
             bool muteStatus = Audio.ToggleMicMute();
             Program.toast.RunToast(muteStatus ? Properties.Strings.Muted : Properties.Strings.Unmuted, muteStatus ? ToastIcon.MicrophoneMute : ToastIcon.Microphone);
             if (AppConfig.IsVivoZenbook()) Program.acpi.DeviceSet(AsusACPI.MicMuteLed, muteStatus ? 1 : 0, "MicmuteLed");
+            MicMuteLED(muteStatus);
         }
 
         static void MuteLEDInit()
         {
             if (!AppConfig.IsVivoZenbook()) return;
             if (Program.acpi.IsSupported(AsusACPI.MicMuteLed)) Program.acpi.DeviceSet(AsusACPI.MicMuteLed, Audio.IsMicMuted() ? 1 : 0, "MicmuteLedInit");
+            MicMuteLED(Audio.IsMicMuted());
             if (Program.acpi.IsSupported(AsusACPI.SoundMuteLed)) Audio.SubscribeMute(MuteLED);
         }
 

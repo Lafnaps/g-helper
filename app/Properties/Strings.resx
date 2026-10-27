@@ -189,9 +189,6 @@
   <data name="TempLimitNeedsPower" xml:space="preserve">
     <value>CPU Temp Limit requires Apply Power Limits</value>
   </data>
-  <data name="ToggleTouchpad" xml:space="preserve">
-    <value>Toggle Touchpad</value>
-  </data>
   <data name="PowerBackendMsr" xml:space="preserve">
     <value>Intel RAPL · direct</value>
   </data>
@@ -870,6 +867,9 @@ Do you still want to continue?</value>
   <data name="ReadLimits" xml:space="preserve">
     <value>Read Limits</value>
   </data>
+  <data name="RearLight" xml:space="preserve">
+    <value>Rear Light</value>
+  </data>
   <data name="Reset" xml:space="preserve">
     <value>Reset</value>
   </data>
@@ -947,6 +947,9 @@ Do you still want to continue?</value>
   </data>
   <data name="ToggleScreen" xml:space="preserve">
     <value>Toggle Screen</value>
+  </data>
+  <data name="ToggleTouchpad" xml:space="preserve">
+    <value>Toggle Touchpad</value>
   </data>
   <data name="ToggleTouchscreen" xml:space="preserve">
     <value>Toggle Touchscreen</value>
