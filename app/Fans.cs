@@ -103,6 +103,10 @@ namespace GHelper
             seriesMid.Color = colorEco;
             seriesXGM.Color = Color.Orange;
 
+            chartCPU.Series.Add("Floor").Color = Color.FromArgb(64, colorStandard);
+            chartGPU.Series.Add("Floor").Color = Color.FromArgb(64, colorTurbo);
+            chartMid.Series.Add("Floor").Color = Color.FromArgb(64, colorEco);
+
             chartCPU.MouseMove += (sender, e) => ChartCPU_MouseMove(sender, e, AsusFan.CPU);
             chartCPU.MouseUp += ChartCPU_MouseUp;
             chartCPU.MouseLeave += ChartCPU_MouseLeave;
@@ -1198,6 +1202,18 @@ namespace GHelper
             if (chart.Legends.Count > 0)
                 chart.Legends[0].Enabled = false;
 
+            if (device != AsusFan.XGM)
+            {
+                Series floor = chart.Series[1];
+                floor.ChartType = SeriesChartType.Area;
+                floor.Points.Clear();
+
+                byte[] floors = Program.acpi.GetFanFloor(device);
+                for (int i = 0; i < 8; i++)
+                    floor.Points.AddXY(30 + i * 10, floors[i]);
+                floor.Points.AddXY(tempMax, floors[7]);
+            }
+
         }
 
         public void FormPosition()
@@ -1205,7 +1221,7 @@ namespace GHelper
 
             if (Height > Program.settingsForm.Height)
             {
-                Top = Math.Max(0, Program.settingsForm.Top + Program.settingsForm.Height - Height);
+                Top = Math.Max(Screen.FromControl(Program.settingsForm).WorkingArea.Top, Program.settingsForm.Top + Program.settingsForm.Height - Height);
             }
             else
             {
@@ -1497,7 +1513,7 @@ namespace GHelper
             bool modeB0 = Program.acpi.IsAllAmdPPT();
             bool modeC1 = Program.acpi.IsSupported(AsusACPI.PPT_APUC1);
 
-            bool modeCross = Program.acpi.IsSupported(AsusACPI.PPT_CROSS9F);
+            bool modeCross = Program.acpi.IsSupported(AsusACPI.PPT_CROSS9F) || Program.acpi.IsSupported(AsusACPI.PPT_TOTAL9A);
             bool modeGPUtoCPU = Program.acpi.IsSupported(AsusACPI.PPT_GPUCPU9C);
             bool modeCPUTemp = Program.acpi.IsSupported(AsusACPI.PPT_TEMP9E);
 
@@ -1622,7 +1638,7 @@ namespace GHelper
             AppConfig.SetMode("limit_cpu", trackCPU.Value);
             AppConfig.SetMode("limit_fast", trackFast.Value);
 
-            if (Program.acpi.IsSupported(AsusACPI.PPT_CROSS9F)) AppConfig.SetMode("limit_crossload", trackCrossLoad.Value);
+            if (Program.acpi.IsSupported(AsusACPI.PPT_CROSS9F) || Program.acpi.IsSupported(AsusACPI.PPT_TOTAL9A)) AppConfig.SetMode("limit_crossload", trackCrossLoad.Value);
             if (Program.acpi.IsSupported(AsusACPI.PPT_GPUCPU9C)) AppConfig.SetMode("limit_gpucpu", trackGPUtoCPU.Value);
             if (Program.acpi.IsSupported(AsusACPI.PPT_TEMP9E)) AppConfig.SetMode("limit_cputemp", trackCPUTemp.Value);
         }
@@ -2081,8 +2097,8 @@ namespace GHelper
             {
                 try
                 {
-                    HitTestResult hit = chart.HitTest(e.X, e.Y);
-                    if (hit.Series is not null && hit.PointIndex >= 0 && hit.PointIndex < hit.Series.Points.Count)
+                    HitTestResult? hit = chart.HitTest(e.X, e.Y, false, ChartElementType.DataPoint).FirstOrDefault(h => h.Series == series);
+                    if (hit is not null && hit.PointIndex >= 0 && hit.PointIndex < hit.Series.Points.Count)
                     {
                         curIndex = hit.PointIndex;
                         curPoint = hit.Series.Points[curIndex];

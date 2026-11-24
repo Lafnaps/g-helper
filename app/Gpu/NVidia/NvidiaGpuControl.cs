@@ -203,9 +203,15 @@ public class NvidiaGpuControl : IGpuControl
     // readings survive those dips and disappear only after a real sleep
     private const int RecentActiveMs = 10_000;
     private long _lastActiveTime = -RecentActiveMs;
-    private float _lastPower;
 
     private bool WithinActiveGrace => Environment.TickCount64 - _lastActiveTime < RecentActiveMs;
+
+    private static readonly int NvmlIntervalMs = AppConfig.Get("nv_interval", 0) * 1000;
+    private readonly object _powerLock = new();
+    private long? _powerTime;
+    private long _vramTime;
+    private float? _power;
+    private (long usedMb, long totalMb)? _vram;
 
     private GpuState GetGpuState()
     {
@@ -240,14 +246,14 @@ public class NvidiaGpuControl : IGpuControl
     // Laptop / driver 591.74). Callers must skip a sleeping dGPU: these reads wake it.
     public (int coreMhz, int memMhz, double? watts)? ReadTelemetry()
     {
-        if (!IsValid) return null;
+        if (!IsGpuActive) return null;
 
         try
         {
             var clocks = _internalGpu!.CurrentClockFrequencies;
             return ((int)(clocks.GraphicsClock.Frequency / 1000),
                     (int)(clocks.MemoryClock.Frequency / 1000),
-                    NvmlHelper.GetGpuPower());
+                    ReadPower(GpuState.Active));
         }
         catch
         {
@@ -526,27 +532,53 @@ public class NvidiaGpuControl : IGpuControl
 
     }
 
+    public int? GetGpuClock()
+    {
+        if (!IsValid) return null;
+        if (GetGpuState() != GpuState.Active) return null;
+
+        var clock = GPUApi.GetAllClockFrequencies(_internalGpu!.Handle, new ClockFrequenciesV2(ClockType.CurrentClock)).GraphicsClock;
+        return clock.IsPresent ? (int)(clock.Frequency / 1000) : null;
+    }
+
 
     public float? GetGpuPower()
     {
         if (!IsValid) return null;
         var state = GetGpuState();
-        if (state == GpuState.Off)
+        var power = ReadPower(state);
+        return state == GpuState.Off ? null : power ?? 0f;
+    }
+
+    private float? ReadPower(GpuState state)
+    {
+        // The overlay and the tuning window share the same NVML polling interval.
+        lock (_powerLock)
         {
-            NvmlHelper.Shutdown();
-            return null;
+            if (state != GpuState.Active)
+            {
+                if (state == GpuState.Asleep && WithinActiveGrace) return _power;
+                _powerTime = null;
+                _power = null;
+                if (state == GpuState.Off) NvmlHelper.Shutdown();
+                return null;
+            }
+
+            long now = Environment.TickCount64;
+            if (_powerTime is long lastRead && now - lastRead < NvmlIntervalMs) return _power;
+            _power = NvmlHelper.GetGpuPower();
+            _powerTime = now;
+            return _power;
         }
-        if (state != GpuState.Active)
-            return (state == GpuState.Asleep && WithinActiveGrace) ? _lastPower : 0f;
-        _lastPower = NvmlHelper.GetGpuPower() ?? 0f;
-        return _lastPower;
     }
 
     public (long usedMb, long totalMb)? GetVramInfo()
     {
         if (!IsValid) return null;
         if (GetGpuState() != GpuState.Active) return null;
-        return NvmlHelper.GetMemoryInfo();
+        if (Environment.TickCount64 - _vramTime < NvmlIntervalMs) return _vram;
+        _vramTime = Environment.TickCount64;
+        return _vram = NvmlHelper.GetMemoryInfo();
     }
 
 }

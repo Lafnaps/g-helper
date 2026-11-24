@@ -957,6 +957,9 @@ Do you still want to continue?</value>
   <data name="Touchscreen" xml:space="preserve">
     <value>Touchscreen</value>
   </data>
+  <data name="TrayIconMode" xml:space="preserve">
+    <value>Tray icon by performance mode</value>
+  </data>
   <data name="Turbo" xml:space="preserve">
     <value>Turbo</value>
   </data>
@@ -1100,6 +1103,9 @@ Do you still want to continue?</value>
   </data>
   <data name="AmbientModeResources" xml:space="preserve">
     <value>Ambient mode may increase resource usage</value>
+  </data>
+  <data name="AmbientBacklight" xml:space="preserve">
+    <value>Ambient light sensor</value>
   </data>
   <data name="MouseMotionSync" xml:space="preserve">
     <value>Motion Sync</value>

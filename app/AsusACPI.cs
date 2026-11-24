@@ -101,6 +101,10 @@ public class AsusACPI
     public const uint DevsGPUFanCurve = 0x00110025;
     public const uint DevsMidFanCurve = 0x00110032;
 
+    public const uint DevsCPUFanFloor = 0x00110026;
+    public const uint DevsGPUFanFloor = 0x00110027;
+    public const uint DevsMidFanFloor = 0x00110033;
+
     public const uint FanHysteresis = 0x00110034;
     public const int Temp_CPU = 0x00120094;
     public const int Temp_GPU = 0x00120097;
@@ -113,6 +117,7 @@ public class AsusACPI
     public const int PPT_CPUB0 = 0x001200B0;  // CPU PPT on 2022 (PPT_LIMIT_APU)
     public const int PPT_CPUB1 = 0x001200B1;  // Total PPT on 2022 (PPT_LIMIT_SLOW)
 
+    public const int PPT_TOTAL9A = 0x0012009A;  // Cross Loading on older NVIDIA models
     public const int PPT_GPUCPU9C = 0x0012009C;  // GPU to CPU Dynamic Boost, 5W steps
     public const int PPT_TEMP9E = 0x0012009E;  // CPU Temperature Limit
     public const int PPT_CROSS9F = 0x0012009F;  // Cross Loading Processor Power
@@ -660,6 +665,16 @@ public class AsusACPI
 
     }
 
+    public byte[] GetFanFloor(AsusFan device)
+    {
+        return DeviceGetBuffer(device switch
+        {
+            AsusFan.GPU => DevsGPUFanFloor,
+            AsusFan.Mid => DevsMidFanFloor,
+            _ => DevsCPUFanFloor
+        });
+    }
+
     public static bool IsInvalidCurve(byte[] curve)
     {
         return curve.Length != 16 || IsEmptyCurve(curve);
@@ -876,13 +891,13 @@ public class AsusACPI
                     uint id = i + j;
                     byte[] buf = DeviceGetLarge(id);
                     uint head = BitConverter.ToUInt32(buf, 0);
-                    if ((head & 0x10000) == 0) continue;
 
                     bool extra = false;
                     for (int k = 4; k < buf.Length; k++)
                         if (buf[k] != 0) { extra = true; break; }
 
-                    if (extra)
+                    if (head == 0 && !extra) continue;
+                    if (extra || (head & 0x10000) == 0)
                     {
                         w.WriteLine(id.ToString("X8") + ": BUF " + BitConverter.ToString(buf));
                     }
@@ -957,9 +972,9 @@ public class AsusACPI
         if (sleep) state = state | ASUS_WMI_KEYBOARD_POWER_SLEEP;
         if (shutdown) state = state | ASUS_WMI_KEYBOARD_POWER_SHUTDOWN;
 
-        state = state | 0x01 << 8;
+        if (!AppConfig.IsNoBacklightSave()) state = state | 0x01 << 8;
 
-        DeviceSet(TUF_KB_STATE, state, "TUF_KB");
+        if (DeviceSet(TUF_KB_STATE, state, "TUF_KB") == 0) DeviceSet(TUF_KB_STATE, state & ~(0x01 << 8), "TUF_KB");
         if (AppConfig.IsVivoZenPro() && IsSupported(KBD_BACKLIGHT_OOBE)) DeviceSet(KBD_BACKLIGHT_OOBE, 1, "VIVO OOBE");
     }
 

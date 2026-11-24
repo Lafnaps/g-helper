@@ -165,6 +165,12 @@ namespace GHelper.Peripherals
             ForEachAsync(ConnectedKeyboards, kb => kb.SyncFromLaptopAura(), "Failed to sync with laptop aura");
         }
 
+        public static void RestoreKeyboardLighting()
+        {
+            if (IsKeyboardAuraSync) return;
+            ForEachAsync(ConnectedKeyboards, kb => { if (kb.GetType() == typeof(StrixScopeII) && kb.HasTransientLighting) kb.ApplyStoredLighting(); }, "Failed to restore lighting");
+        }
+
         public static void RefreshBatteryForAllDevices(bool force)
         {
             //Polling the battery every 20s should be enough
@@ -533,6 +539,8 @@ namespace GHelper.Peripherals
             DetectMouse(new TUFGamingMiniMikuWired());
             DetectMouse(new Pugio());
             DetectMouse(new MD200());
+            DetectMouse(new MD301());
+            DetectMouse(new MD301Wired());
             DetectMouse(new BalteusQi());
             DetectMouse(new Balteus());
             DetectMouse(new BulwarkDock());
@@ -569,6 +577,7 @@ namespace GHelper.Peripherals
             DetectKeyboard(new FalchionWireless());
             DetectKeyboard(new FalchionRX());
             DetectKeyboard(new FalchionAceHFX());
+            DetectKeyboard(new FalchionAce75HE());
             DetectKeyboard(new FalchionAce());
             DetectKeyboard(new TUFK1());
             DetectKeyboard(new TUFK3());
@@ -588,6 +597,7 @@ namespace GHelper.Peripherals
             DetectHeadset(new Pelta());
             DetectHeadset(new CetraSpeedNova());
             DetectHeadset(new Clavis());
+            DetectHeadset(new DeltaS());
             DetectHeadset(new CetraRgb());
             DetectHeadset(new StrixGo24());
         }
@@ -827,7 +837,10 @@ namespace GHelper.Peripherals
             DetectAllAsusMice();
             DetectAllAsusKeyboards();
             DetectAllAsusHeadsets();
-            if (AppConfig.IsDetachableKeyboard()) Program.inputDispatcher.Init();
+            if (AppConfig.IsDetachableKeyboard()) {
+                Program.inputDispatcher.Init();
+                Input.InputDispatcher.InitFNLock();
+            }
             XGM.Init();
         }
     }

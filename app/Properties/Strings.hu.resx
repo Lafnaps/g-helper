@@ -441,7 +441,7 @@ Folytatni szeretnéd?</value>
     <value>Ventilátor és energia</value>
   </data>
   <data name="FanSpeed" xml:space="preserve">
-    <value>Ventilátor</value>
+    <value>Venti</value>
   </data>
   <data name="FansPower" xml:space="preserve">
     <value>Venti + energia</value>
@@ -1120,5 +1120,8 @@ felmelegítsék az alvó laptopot és lemerítsék az akkumulátort.</value>
   </data>
   <data name="Background" xml:space="preserve">
     <value>Háttér</value>
+  </data>
+  <data name="AmbientBacklight" xml:space="preserve">
+    <value>Környezeti fényérzékelő</value>
   </data>
 </root>
